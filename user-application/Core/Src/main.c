@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BOOTLOADER_ADDR 0x08000000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,7 +55,16 @@ static void MX_GPIO_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void jump_to_app(void)
+{
+  uint32_t go_address = *((volatile uint32_t*)(BOOTLOADER_ADDR + 4));
+  uint32_t sp_val = *((volatile uint32_t*)(BOOTLOADER_ADDR));
 
+  __set_MSP(sp_val);
+
+  void (*jump)(void) = (void *)go_address;
+  jump();
+}
 /* USER CODE END 0 */
 
 /**
@@ -100,6 +109,8 @@ int main(void)
   {
     HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
     HAL_Delay(1000);
+    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+    jump_to_app();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

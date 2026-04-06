@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define USER_APP 0x08009000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,7 +55,16 @@ static void MX_GPIO_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void jump_to_app(void)
+{
+  uint32_t go_address = *((volatile uint32_t*)(USER_APP + 4));
+  uint32_t sp_val = *((volatile uint32_t*)(USER_APP));
 
+  __set_MSP(sp_val);
+
+  void (*jump)(void) = (void*)go_address;
+  jump();
+}
 /* USER CODE END 0 */
 
 /**
@@ -99,7 +108,9 @@ int main(void)
   while (1)
   {
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(2000);
+    HAL_Delay(1000);
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    jump_to_app();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
