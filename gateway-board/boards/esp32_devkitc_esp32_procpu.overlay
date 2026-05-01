@@ -15,7 +15,7 @@
 &pinctrl {
     twai_default: twai_default {
         group1 {
-            pinmux = <TWAI_TX_GPIO22>, <TWAI_RX_GPIO23>;
+            pinmux = <TWAI_TX_GPIO26>, <TWAI_RX_GPIO25>;
         };
     };
 };
