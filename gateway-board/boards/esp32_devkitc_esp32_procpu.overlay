@@ -1,0 +1,28 @@
+/ {
+    aliases {
+        led0 = &embedded_led;
+        can0 = &twai;
+    };
+
+    leds {
+        compatible = "gpio-leds";
+        embedded_led: embedded_led {
+            gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+        };
+    };
+};
+
+&pinctrl {
+    twai_default: twai_default {
+        group1 {
+            pinmux = <TWAI_TX_GPIO22>, <TWAI_RX_GPIO23>;
+        };
+    };
+};
+
+&twai {
+    status = "okay";
+    pinctrl-0 = <&twai_default>;
+    pinctrl-names = "default";
+    bus-speed = <125000>;
+};

@@ -1,0 +1,15 @@
+manifest:
+  version: 1.0
+
+  projects:
+    - name: zephyr
+      url: https://github.com/zephyrproject-rtos/zephyr
+      revision: v4.2.0
+      import:
+        name-allowlist:
+          - cmsis_6
+          - hal_nxp
+          - hal_stm32
+          - hal_nordic
+        path-prefix: deps
+
