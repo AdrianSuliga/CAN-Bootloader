@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f7xx_hal_flash.h"
+#include "string.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -31,7 +33,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define USER_APP 0x08009000
+#define USER_APP 0x08008000
+#define USER_APP_SIZE 6224
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -51,12 +54,18 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN1_Init(void);
+void jump_to_app(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+static volatile int write_offset = 0;
+static volatile int write_ready = 0;
+
+static volatile uint8_t rx_buffer[USER_APP_SIZE];
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
@@ -65,19 +74,58 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
   HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, data);
 
-  HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+  if (rxHeader.StdId == 0x10) {
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    
+    if (rxHeader.DLC == 8) {
+      memcpy((void*)(rx_buffer + write_offset), data, 8);
+      write_offset += 8;
+    } else {
+      uint8_t buffer[8] = {0xFF};
+      memcpy(buffer, data, rxHeader.DLC);
+      memcpy((void*)(rx_buffer + write_offset), buffer, 8);
+      write_offset += rxHeader.DLC;
+    }
+
+  } else if (rxHeader.StdId == 0x11) {
+    write_ready = 1;
+  }
 }
 
 void jump_to_app(void)
 {
-  uint32_t go_address = *((volatile uint32_t*)(USER_APP + 4));
-  uint32_t sp_val = *((volatile uint32_t*)(USER_APP));
+    uint32_t app_sp = *((volatile uint32_t*)(USER_APP));
+    uint32_t app_pc = *((volatile uint32_t*)(USER_APP + 4));
 
-  __set_MSP(sp_val);
+    __disable_irq();
 
-  void (*jump)(void) = (void*)go_address;
-  jump();
+    HAL_CAN_DeInit(&hcan1);
+    HAL_RCC_DeInit();
+    HAL_DeInit();
+
+    SysTick->CTRL = 0;
+    SysTick->LOAD = 0;
+    SysTick->VAL  = 0;
+
+    SCB_DisableICache();
+    SCB_InvalidateICache();
+
+    for (int i = 0; i < 8; i++) {
+        NVIC->ICER[i] = 0xFFFFFFFF;
+        NVIC->ICPR[i] = 0xFFFFFFFF;
+    }
+
+    SCB->VTOR = USER_APP;
+
+    __set_MSP(app_sp);
+
+    __DSB();
+    __ISB();
+
+    void (*app_reset)(void) = (void (*)(void))app_pc;
+    app_reset();
 }
+
 /* USER CODE END 0 */
 
 /**
@@ -119,12 +167,72 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1000);
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1000);
+    if (write_ready) {
+      HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+
+      HAL_FLASH_Unlock();
+      __disable_irq();
+
+      __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR |
+                            FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR |
+                            FLASH_FLAG_PGPERR | FLASH_FLAG_ERSERR);
+
+      FLASH_EraseInitTypeDef erase;
+      uint32_t error;
+
+      erase.TypeErase = FLASH_TYPEERASE_SECTORS;
+      erase.VoltageRange = VOLTAGE_RANGE_3;
+      erase.Sector = FLASH_SECTOR_1;
+      erase.NbSectors = 2;
+
+      if (HAL_FLASHEx_Erase(&erase, &error) != HAL_OK) {
+        __enable_irq();
+        HAL_FLASH_Lock();
+        while (1) {}
+      }
+
+      for (int i = 0; i < USER_APP_SIZE; i += 8) {
+        uint32_t word1, word2;
+        memcpy(&word1, (void*)(rx_buffer + i), 4);
+        memcpy(&word2, (void*)(rx_buffer + i + 4), 4);
+
+        __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR |
+                            FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR |
+                            FLASH_FLAG_PGPERR | FLASH_FLAG_ERSERR);
+
+        FLASH_WaitForLastOperation(50000);
+
+        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, USER_APP + i, word1) != HAL_OK) {
+          __enable_irq();
+          HAL_FLASH_Lock();
+          while (1) {}
+        }
+
+        FLASH_WaitForLastOperation(50000);
+
+        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, USER_APP + i + 4, word2) != HAL_OK) {
+          __enable_irq();
+          HAL_FLASH_Lock();
+          while (1) {}
+        }
+
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+      }
+
+      __enable_irq();
+      HAL_FLASH_Lock();
+
+      write_ready = 0;
+
+      HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
+
+      jump_to_app();
+    }
+
+    HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
