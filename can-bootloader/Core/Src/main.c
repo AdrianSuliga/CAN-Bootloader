@@ -75,7 +75,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, data);
 
   if (rxHeader.StdId == 0x10) {
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
     
     if (rxHeader.DLC == 8) {
       memcpy((void*)(rx_buffer + write_offset), data, 8);
@@ -92,38 +92,43 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
 }
 
+// Jump to user application stored at USER_APP
 void jump_to_app(void)
 {
-    uint32_t app_sp = *((volatile uint32_t*)(USER_APP));
-    uint32_t app_pc = *((volatile uint32_t*)(USER_APP + 4));
+  // Disable interrupts for critical section
+  __disable_irq();
 
-    __disable_irq();
+  // Deinitialize all HAL peripherals and stop SysTick
+  HAL_DeInit();
 
-    HAL_CAN_DeInit(&hcan1);
-    HAL_RCC_DeInit();
-    HAL_DeInit();
+  // Reset SysTick
+  SysTick->CTRL = 0;
+  SysTick->LOAD = 0;
+  SysTick->VAL = 0;
 
-    SysTick->CTRL = 0;
-    SysTick->LOAD = 0;
-    SysTick->VAL  = 0;
+  // Set vector table to the one used by user application
+  SCB->VTOR = USER_APP;
 
-    SCB_DisableICache();
-    SCB_InvalidateICache();
+  // Set stack pointer to the one used by user application
+  volatile uint32_t newStackPtr;
+  newStackPtr = *(volatile uint32_t*)(USER_APP);
 
-    for (int i = 0; i < 8; i++) {
-        NVIC->ICER[i] = 0xFFFFFFFF;
-        NVIC->ICPR[i] = 0xFFFFFFFF;
-    }
+  __set_MSP(newStackPtr);
 
-    SCB->VTOR = USER_APP;
+  // Prepare „fake” function to jump to user application
+  volatile uint32_t codeAddress;
+  codeAddress = *(volatile uint32_t*)(USER_APP + 4);
 
-    __set_MSP(app_sp);
+  void (*app_entry)(void) = (void*)codeAddress;
 
-    __DSB();
-    __ISB();
+  // Enable interrupts before the jump
+  __enable_irq();
 
-    void (*app_reset)(void) = (void (*)(void))app_pc;
-    app_reset();
+  // Barrier for memory instructions right before the jump
+  __DSB();
+
+  // User application starts here
+  app_entry();
 }
 
 /* USER CODE END 0 */
@@ -171,8 +176,6 @@ int main(void)
   while (1)
   {
     if (write_ready) {
-      HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-
       HAL_FLASH_Unlock();
       __disable_irq();
 
@@ -218,8 +221,6 @@ int main(void)
           HAL_FLASH_Lock();
           while (1) {}
         }
-
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
       }
 
       __enable_irq();
@@ -227,11 +228,12 @@ int main(void)
 
       write_ready = 0;
 
-      HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
-
       jump_to_app();
     }
 
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    HAL_Delay(100);
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     HAL_Delay(100);
     /* USER CODE END WHILE */
 
