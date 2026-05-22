@@ -25,6 +25,9 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sysmem.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/syscalls.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32f746xx.s
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/flash_utility.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/can_utility.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/boot_utility.c
 )
 
 # STM32 HAL/LL Drivers
