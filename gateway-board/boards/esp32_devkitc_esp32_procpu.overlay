@@ -26,3 +26,7 @@
     pinctrl-names = "default";
     bus-speed = <125000>;
 };
+
+&wifi {
+    status = "okay";
+};
