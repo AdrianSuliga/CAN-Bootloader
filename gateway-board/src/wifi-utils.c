@@ -26,6 +26,7 @@ atomic_t mqtt_ready = ATOMIC_INIT(0x0);
 static struct net_mgmt_event_callback wifi_callback;
 static struct sockaddr_in broker;
 static struct mqtt_client client;
+static struct pollfd fds;
 
 static void update_state_on_wifi_connect()
 {
@@ -41,7 +42,7 @@ static void update_state_on_wifi_disconnect()
     atomic_set(&mqtt_ready, 0);
 }
 
-void wifi_handler(struct net_mgmt_event_callback *cb, uint64_t event, struct net_if *iface)
+static void wifi_handler(struct net_mgmt_event_callback *cb, uint64_t event, struct net_if *iface)
 {
     switch (event) {
         case NET_EVENT_WIFI_CONNECT_RESULT:
@@ -101,7 +102,177 @@ int setup_wifi()
     return k_sem_take(&wifi_ready_flag, K_SECONDS(WIFI_CONNECT_TIMEOUT));
 }
 
+static void update_state_on_mqtt_connect()
+{
+    k_sem_give(&mqtt_ready_flag);
+    atomic_set(&mqtt_ready, 1);
+}
+
+static void update_state_on_mqtt_disconnect()
+{
+    k_sem_take(&mqtt_ready_flag, K_NO_WAIT);
+    atomic_set(&mqtt_ready, 0);
+}
+
+static int subscribe()
+{
+    struct mqtt_topic sub_topic = {
+        .topic = {
+            .utf8 = MQTT_SUBSCRIBE_TOPIC,
+            .size = strlen(MQTT_SUBSCRIBE_TOPIC)
+        },
+        .qos = MQTT_QOS_0_AT_MOST_ONCE
+    };
+
+    const struct mqtt_subscription_list sub_list = {
+        .list = &sub_topic,
+        .list_count = 1,
+        .message_id = 6767
+    };
+
+    LOG_INF("Subscribing to topic %s", MQTT_SUBSCRIBE_TOPIC);
+    return mqtt_subscribe(&client, &sub_list);
+}
+
+static void mqtt_handler(struct mqtt_client *client, const struct mqtt_evt *evt)
+{
+    switch (evt->type) {
+        case MQTT_EVT_CONNACK:
+            if (evt->result != 0) {
+                LOG_ERR("Unable to connect to broker, error %d", evt->result);
+                break;
+            }
+
+            subscribe();
+            update_state_on_mqtt_connect();
+            LOG_INF("MQTT connected");
+            break;
+
+        case MQTT_EVT_DISCONNECT:
+            update_state_on_mqtt_disconnect();
+            LOG_INF("MQTT disconnected");
+            break;
+
+        case MQTT_EVT_PUBLISH:
+            LOG_INF("Received message on topic %s", evt->param.publish.message.topic.topic.utf8);
+            break;
+        
+        default:
+            LOG_WRN("Unknown MQTT event, %d", evt->type);
+            break;
+    }
+}
+
+static int server_resolve()
+{
+    int err;
+
+    struct addrinfo *result;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        .ai_socktype = SOCK_STREAM
+    };
+
+    err = getaddrinfo(MQTT_BROKER, NULL, &hints, &result);
+    if (err) {
+        LOG_ERR("Failed to get address info of %s", MQTT_BROKER);
+        return err;
+    }
+
+    if (result == NULL) {
+        LOG_ERR("Address not found");
+        return -ENOENT;
+    }
+
+    broker.sin_family = AF_INET;
+    broker.sin_port = htons(MQTT_BROKER_PORT);
+    broker.sin_addr.s_addr = ((struct sockaddr_in *)result->ai_addr)->sin_addr.s_addr;
+
+    char addr_str[NET_IPV4_ADDR_LEN];
+    net_addr_ntop(AF_INET, &broker.sin_addr, addr_str, sizeof(addr_str));
+
+    LOG_INF("%s resolved as %s", MQTT_BROKER, addr_str);
+
+    freeaddrinfo(result);
+
+    return err;
+}
+
+static void fill_mqtt_client_params()
+{
+    client.broker = &broker;
+    client.evt_cb = mqtt_handler;
+    client.client_id.utf8 = MQTT_CLIENT;
+    client.client_id.size = strlen(MQTT_CLIENT);
+    client.password = NULL;
+    client.user_name = NULL;
+    client.protocol_version = MQTT_VERSION_3_1_1;
+
+    client.rx_buf = rx_buffer;
+    client.rx_buf_size = sizeof(rx_buffer);
+    client.tx_buf = tx_buffer;
+    client.tx_buf_size = sizeof(tx_buffer);
+
+    client.transport.type = MQTT_TRANSPORT_NON_SECURE;
+}
+
 int setup_mqtt()
 {
-    return k_sem_take(&mqtt_ready_flag, K_SECONDS(MQTT_CONNECT_TIMEOUT));
+    mqtt_client_init(&client);
+
+    int err = server_resolve();
+    if (err != 0) {
+        LOG_ERR("Failed to resolve broker hostname");
+        return err;
+    }
+
+    fill_mqtt_client_params();
+
+    err = mqtt_connect(&client);
+    if (err != 0) {
+        LOG_ERR("Failed to call mqtt_connect, error %d", err);
+        return err;
+    }
+
+    fds.fd = client.transport.tcp.sock;
+    fds.events = POLLIN;
+
+    err = poll_mqtt();
+    if (err != 0) {
+        LOG_ERR("Failed to poll MQTT socket, error %d", err);
+        return err;
+    }
+
+    err = k_sem_take(&mqtt_ready_flag, K_SECONDS(MQTT_CONNECT_TIMEOUT));
+    if (err != 0) {
+        zsock_close(client.transport.tcp.sock);
+        mqtt_disconnect(&client, NULL);
+    }
+
+    return err;
+}
+
+int poll_mqtt()
+{
+    int err = poll(&fds, 1, mqtt_keepalive_time_left(&client));
+    if (err < 1) {
+        LOG_ERR("Error when calling poll, error %d", err);
+        return err;
+    }
+
+    err = mqtt_live(&client);
+    if (err != 0 && err != -EAGAIN) {
+        LOG_ERR("Error when calling mqtt_live, error %d", err);
+        return err;
+    }
+
+    if ((fds.revents & POLLIN) == POLLIN) {
+        err = mqtt_input(&client);
+        if (err) {
+            LOG_ERR("Error when calling mqtt_input, error %d", err);
+            return err;
+        }
+    }
+
+    return 0;
 }

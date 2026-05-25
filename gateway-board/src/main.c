@@ -62,8 +62,20 @@ int main()
             continue;
         }
 
-        k_sem_take(&mqtt_msg_app_received, K_FOREVER);
-        LOG_INF("Msg received");
+        ret = poll_mqtt();
+        if (ret != 0) {
+            LOG_ERR("Failed to poll MQTT socket, error %d", ret);
+            continue;
+        }
+
+        ret = k_sem_take(&mqtt_msg_app_received, K_SECONDS(MQTT_MSG_TIMEOUT));
+        if (ret == 0) {
+            LOG_INF("Msg received, handling...");
+        } else if (ret == -EAGAIN) {
+            LOG_WRN("MQTT message timeout");
+        } else {
+            LOG_ERR("Error when waiting for MQTT message, error %d", ret);
+        }
     }
 
     return 0;

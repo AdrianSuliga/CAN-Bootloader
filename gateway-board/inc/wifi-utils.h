@@ -10,7 +10,8 @@
 #define WIFI_PSK "jestnatrello"
 
 #define WIFI_CONNECT_TIMEOUT 30
-#define MQTT_CONNECT_TIMEOUT 10
+#define MQTT_CONNECT_TIMEOUT 30
+#define MQTT_MSG_TIMEOUT 30
 
 #define MQTT_CLIENT "zephyr_bootloader_mqtt_client"
 #define MQTT_BROKER "broker.hivemq.com"
@@ -41,5 +42,9 @@ int setup_wifi();
 
 // Establish MQTT connection, blocking
 int setup_mqtt();
+
+// Poll MQTT socket, must be called at least
+// once to get MQTT connection
+int poll_mqtt();
 
 #endif /* __WIFI_UTILS_H */
