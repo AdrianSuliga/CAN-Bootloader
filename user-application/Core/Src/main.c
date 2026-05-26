@@ -55,16 +55,58 @@ static void MX_GPIO_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void jump_to_app(void)
+void jump_to_bootloader(void)
 {
-  uint32_t go_address = *((volatile uint32_t*)(BOOTLOADER_ADDR + 4));
-  uint32_t sp_val = *((volatile uint32_t*)(BOOTLOADER_ADDR));
+  // Start of Flash memory
+  uint32_t target = 0x08000000;
 
-  __set_MSP(sp_val);
+  // Disable interrupts for critical section
+  __disable_irq();
 
-  void (*jump)(void) = (void *)go_address;
-  jump();
+  // Deinitialize all HAL peripherals and stop SysTick
+  HAL_DeInit();
+
+  // Reset SysTick
+  SysTick->CTRL = 0;
+  SysTick->LOAD = 0;
+  SysTick->VAL = 0;
+
+  // Set vector table to the one used by bootloader
+  SCB->VTOR = target;
+
+  // Set stack pointer to the one used by bootloader
+  volatile uint32_t newStackPtr;
+  newStackPtr = *(volatile uint32_t*)(target);
+
+  __set_MSP(newStackPtr);
+
+  // Prepare „fake” function to jump to bootloader
+  volatile uint32_t codeAddress;
+  codeAddress = *(volatile uint32_t*)(target + 4);
+
+  void (*app_entry)(void) = (void*)codeAddress;
+
+  // Enable interrupts before the jump
+  __enable_irq();
+
+  // Barrier for memory instructions right before the jump
+  __DSB();
+
+  // Bootloader starts here
+  app_entry();
 }
+/*
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+  CAN_RxHeaderTypeDef rxHeader;
+  uint8_t data[8];
+
+  HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, data);
+
+  if (rxHeader.StdId == 0x12) {
+    jump_to_bootloader();
+  }
+}*/
 /* USER CODE END 0 */
 
 /**
@@ -79,7 +121,7 @@ int main(void)
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
-  //MPU_Config();
+  MPU_Config();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -107,10 +149,14 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    HAL_Delay(100);
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    HAL_Delay(100);
+    for (int i = 0; i < 5; ++i) {
+      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+      HAL_Delay(1000);
+      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+      HAL_Delay(1000);
+    }
+
+    jump_to_bootloader();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
