@@ -18,7 +18,7 @@
 #define MQTT_PUBLISH_TOPIC "system/gateway_board/publish/state"
 #define MQTT_SUBSCRIBE_TOPIC "system/gateway_board/subscribe/new_app"
 
-#define MQTT_MESSAGE_RX_BUFFER_SIZE 8192
+#define MQTT_MESSAGE_RX_BUFFER_SIZE 16384
 #define MQTT_MESSAGE_TX_BUFFER_SIZE 256
 
 // Received new firmware
