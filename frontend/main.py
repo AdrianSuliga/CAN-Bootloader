@@ -45,7 +45,7 @@ print(f"Publishing firmware to topic: {TOPIC}")
 result = client.publish(
     TOPIC,
     payload=firmware_data,
-    qos=0,
+    qos=1,
 )
 
 result.wait_for_publish()
