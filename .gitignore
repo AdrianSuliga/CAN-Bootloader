@@ -1,3 +1,9 @@
 .vscode/
 can-bootloader/.settings/
 build/
+bin/
+include/
+lib/
+lib64
+pyvenv.cfg
+
