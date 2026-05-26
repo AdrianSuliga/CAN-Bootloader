@@ -12,11 +12,9 @@
 
 LOG_MODULE_REGISTER(WifiUtils, LOG_LEVEL_DBG);
 
+uint8_t tx_buffer[MQTT_MESSAGE_TX_BUFFER_SIZE] = { 0x0 };
 uint8_t rx_buffer[MQTT_MESSAGE_RX_BUFFER_SIZE] = { 0x0 };
 uint32_t rx_buffer_app_size = 0;
-
-static uint8_t tx_buffer[MQTT_MESSAGE_TX_BUFFER_SIZE];
-static uint8_t payload_buffer[MQTT_PAYLOAD_BUFFER_SIZE];
 
 K_SEM_DEFINE(mqtt_msg_app_received, 0, 1);
 K_SEM_DEFINE(wifi_ready_flag, 0, 1);
@@ -158,16 +156,42 @@ static void mqtt_handler(struct mqtt_client *client, const struct mqtt_evt *evt)
         case MQTT_EVT_PUBLISH:
             LOG_INF("Received message on topic %s", evt->param.publish.message.topic.topic.utf8);
 
-            int n = mqtt_read_publish_payload(client, rx_buffer, MQTT_MESSAGE_RX_BUFFER_SIZE);
-            if (n > 0) {
-                LOG_INF("Received app of size %d", n);
-                rx_buffer_app_size = n;
-            } else {
-                LOG_ERR("Failed to read published MQTT payload, error %d", n);
+            memset(rx_buffer, 0, MQTT_MESSAGE_RX_BUFFER_SIZE);
+
+            uint32_t total_read = 0;
+            uint32_t payload_len = evt->param.publish.message.payload.len;
+
+            LOG_INF("Incoming payload size: %d", payload_len);
+
+            if (payload_len > MQTT_MESSAGE_RX_BUFFER_SIZE) {
+                LOG_ERR("Payload too large for buffer");
                 break;
             }
 
-            k_sem_give(&mqtt_msg_app_received);
+            while (total_read < payload_len) {
+                int n = mqtt_read_publish_payload(client, rx_buffer + total_read, payload_len - total_read);
+
+                if (n == -EAGAIN) {
+                    k_sleep(K_SECONDS(1));
+                    continue;
+                } else if (n < 0) {
+                    LOG_ERR("Failed to call mqtt_read_publish_payload, error %d", n);
+                    break;
+                }
+
+                total_read += n;
+                LOG_INF("Read MQTT payload (%d / %d)", total_read, payload_len);
+            }
+
+            if (total_read == payload_len) {
+                LOG_INF("Received full firmware image: %d bytes", total_read);
+                
+                rx_buffer_app_size = total_read;
+                k_sem_give(&mqtt_msg_app_received);
+            } else {
+                LOG_ERR("Failed to read full payload");
+            }
+
             break;
 
         case MQTT_EVT_SUBACK:

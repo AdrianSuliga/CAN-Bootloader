@@ -74,7 +74,11 @@ int main()
         ret = k_sem_take(&mqtt_msg_app_received, K_NO_WAIT);
         if (ret == 0) {
             LOG_INF("Msg received, handling...");
-            LOG_INF("Programming app %s of size %d", rx_buffer, rx_buffer_app_size);
+            LOG_INF("Programming app of size %d", rx_buffer_app_size);
+            ret = send_user_application_buffer(can_dev);
+            if (ret != 0) {
+                LOG_ERR("Failed to program app, error %d", ret);
+            }
         } else if (ret == -EBUSY) {
             LOG_WRN("MQTT message not received");
         } else {

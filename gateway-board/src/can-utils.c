@@ -1,5 +1,5 @@
 #include "can-utils.h"
-#include "user-application.h"
+#include "wifi-utils.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/can.h>
@@ -69,35 +69,35 @@ int send_user_application_buffer(const struct device *can_dev)
 
     // Go through user_application_buffer and send
     // 8-byte fragments via CAN
-    while (idx + can_payload_size <= user_application_bin_len) {
+    while (idx + can_payload_size <= rx_buffer_app_size) {
 
         ret = send_can_frame(can_dev, CAN_FRAME_APP_FRAGMENT_ID,
-                             user_application_bin + idx, can_payload_size);
+                             rx_buffer + idx, can_payload_size);
         if (ret < 0) {
             LOG_ERR("Failed to send CAN frame, error %d", ret);
             return ret;
         }
         
         LOG_INF("Sent (%d / %d) [ %02x %02x %02x %02x %02x %02x %02x %02x ]",
-                idx + 8, user_application_bin_len,
-                user_application_bin[idx],     user_application_bin[idx + 1],
-                user_application_bin[idx + 2], user_application_bin[idx + 3],
-                user_application_bin[idx + 4], user_application_bin[idx + 5],
-                user_application_bin[idx + 6], user_application_bin[idx + 7]);
+                idx + 8, rx_buffer_app_size,
+                rx_buffer[idx],     rx_buffer[idx + 1],
+                rx_buffer[idx + 2], rx_buffer[idx + 3],
+                rx_buffer[idx + 4], rx_buffer[idx + 5],
+                rx_buffer[idx + 6], rx_buffer[idx + 7]);
 
         idx += can_payload_size;
     }
 
     // If there are bytes left, send them as well
-    if (user_application_bin_len - idx > 0) {
+    if (rx_buffer_app_size - idx > 0) {
         ret = send_can_frame(can_dev, CAN_FRAME_APP_FRAGMENT_ID,
-                             user_application_bin + idx, user_application_bin_len - idx);
+                             rx_buffer + idx, rx_buffer_app_size - idx);
         if (ret < 0) {
             LOG_ERR("Failed to send CAN frame, error %d", ret);
             return ret;
         }
 
-        LOG_INF("Sent (%d / %d)", user_application_bin_len, user_application_bin_len);
+        LOG_INF("Sent (%d / %d)", rx_buffer_app_size, rx_buffer_app_size);
     }
     
     // Send End of Transmission frame
