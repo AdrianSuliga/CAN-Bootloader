@@ -12,8 +12,10 @@
 
 LOG_MODULE_REGISTER(WifiUtils, LOG_LEVEL_DBG);
 
-static uint8_t rx_buffer[MQTT_MESSAGE_BUFFER_SIZE];
-static uint8_t tx_buffer[MQTT_MESSAGE_BUFFER_SIZE];
+uint8_t rx_buffer[MQTT_MESSAGE_RX_BUFFER_SIZE] = { 0x0 };
+uint32_t rx_buffer_app_size = 0;
+
+static uint8_t tx_buffer[MQTT_MESSAGE_TX_BUFFER_SIZE];
 static uint8_t payload_buffer[MQTT_PAYLOAD_BUFFER_SIZE];
 
 K_SEM_DEFINE(mqtt_msg_app_received, 0, 1);
@@ -155,6 +157,21 @@ static void mqtt_handler(struct mqtt_client *client, const struct mqtt_evt *evt)
 
         case MQTT_EVT_PUBLISH:
             LOG_INF("Received message on topic %s", evt->param.publish.message.topic.topic.utf8);
+
+            int n = mqtt_read_publish_payload(client, rx_buffer, MQTT_MESSAGE_RX_BUFFER_SIZE);
+            if (n > 0) {
+                LOG_INF("Received app of size %d", n);
+                rx_buffer_app_size = n;
+            } else {
+                LOG_ERR("Failed to read published MQTT payload, error %d", n);
+                break;
+            }
+
+            k_sem_give(&mqtt_msg_app_received);
+            break;
+
+        case MQTT_EVT_SUBACK:
+        case MQTT_EVT_PINGRESP:
             break;
         
         default:
@@ -255,7 +272,7 @@ int setup_mqtt()
 int poll_mqtt()
 {
     int err = poll(&fds, 1, mqtt_keepalive_time_left(&client));
-    if (err < 1) {
+    if (err < 0) {
         LOG_ERR("Error when calling poll, error %d", err);
         return err;
     }
@@ -272,6 +289,8 @@ int poll_mqtt()
             LOG_ERR("Error when calling mqtt_input, error %d", err);
             return err;
         }
+
+        fds.revents = 0;
     }
 
     return 0;

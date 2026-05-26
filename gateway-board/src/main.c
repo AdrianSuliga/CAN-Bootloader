@@ -46,6 +46,7 @@ int main()
             ret = setup_wifi();
             if (ret < 0) {
                 LOG_ERR("WiFi connect failed");
+                k_sleep(K_SECONDS(WAIT_ON_ERROR_TIME));
             }
 
             continue;
@@ -57,6 +58,7 @@ int main()
             ret = setup_mqtt();
             if (ret < 0) {
                 LOG_ERR("MQTT setup failed");
+                k_sleep(K_SECONDS(WAIT_ON_ERROR_TIME));
             }
 
             continue;
@@ -65,14 +67,16 @@ int main()
         ret = poll_mqtt();
         if (ret != 0) {
             LOG_ERR("Failed to poll MQTT socket, error %d", ret);
+            k_sleep(K_SECONDS(WAIT_ON_ERROR_TIME));
             continue;
         }
 
-        ret = k_sem_take(&mqtt_msg_app_received, K_SECONDS(MQTT_MSG_TIMEOUT));
+        ret = k_sem_take(&mqtt_msg_app_received, K_NO_WAIT);
         if (ret == 0) {
             LOG_INF("Msg received, handling...");
-        } else if (ret == -EAGAIN) {
-            LOG_WRN("MQTT message timeout");
+            LOG_INF("Programming app %s of size %d", rx_buffer, rx_buffer_app_size);
+        } else if (ret == -EBUSY) {
+            LOG_WRN("MQTT message not received");
         } else {
             LOG_ERR("Error when waiting for MQTT message, error %d", ret);
         }
