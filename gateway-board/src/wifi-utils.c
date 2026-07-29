@@ -26,7 +26,7 @@ atomic_t mqtt_ready = ATOMIC_INIT(0x0);
 static struct net_mgmt_event_callback wifi_callback;
 static struct sockaddr_in broker;
 static struct mqtt_client client;
-static struct pollfd fds;
+static struct zsock_pollfd fds;
 
 static void update_state_on_wifi_connect()
 {
@@ -208,13 +208,13 @@ static int server_resolve()
 {
     int err;
 
-    struct addrinfo *result;
-    struct addrinfo hints = {
+    struct zsock_addrinfo *result;
+    struct zsock_addrinfo hints = {
         .ai_family = AF_INET,
         .ai_socktype = SOCK_STREAM
     };
 
-    err = getaddrinfo(MQTT_BROKER, NULL, &hints, &result);
+    err = zsock_getaddrinfo(MQTT_BROKER, NULL, &hints, &result);
     if (err) {
         LOG_ERR("Failed to get address info of %s", MQTT_BROKER);
         return err;
@@ -234,7 +234,7 @@ static int server_resolve()
 
     LOG_INF("%s resolved as %s", MQTT_BROKER, addr_str);
 
-    freeaddrinfo(result);
+    zsock_freeaddrinfo(result);
 
     return err;
 }
@@ -276,7 +276,7 @@ int setup_mqtt()
     }
 
     fds.fd = client.transport.tcp.sock;
-    fds.events = POLLIN;
+    fds.events = ZSOCK_POLLIN;
 
     err = poll_mqtt();
     if (err != 0) {
@@ -295,7 +295,7 @@ int setup_mqtt()
 
 int poll_mqtt()
 {
-    int err = poll(&fds, 1, mqtt_keepalive_time_left(&client));
+    int err = zsock_poll(&fds, 1, mqtt_keepalive_time_left(&client));
     if (err < 0) {
         LOG_ERR("Error when calling poll, error %d", err);
         return err;
@@ -307,7 +307,7 @@ int poll_mqtt()
         return err;
     }
 
-    if ((fds.revents & POLLIN) == POLLIN) {
+    if ((fds.revents & ZSOCK_POLLIN) == ZSOCK_POLLIN) {
         err = mqtt_input(&client);
         if (err) {
             LOG_ERR("Error when calling mqtt_input, error %d", err);
