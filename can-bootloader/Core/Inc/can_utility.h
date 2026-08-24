@@ -7,13 +7,15 @@ extern "C" {
 
 #include "stm32f7xx_hal.h"
 
-// CAN frame ID for frames containing 
-// new user application fragments
-#define CAN_FRAME_APP_FRAGMENT_ID 0x10
-
 // CAN frame ID for frames indicating all
-// fragments of user applications were sent
-#define CAN_FRAME_APP_TX_END_ID 0x11
+// fragments of user applications were sent.
+// Has to be manually set for each system node.
+#define CAN_FRAME_APP_TX_END_ID ...
+
+// CAN frame ID for frames containing
+// new user application fragments.
+// Has to be manually set for each system node.
+#define CAN_FRAME_APP_FRAGMENT_ID ...
 
 // Size of buffer for user application
 #define USER_APP_BUFFER_SIZE 8192U
