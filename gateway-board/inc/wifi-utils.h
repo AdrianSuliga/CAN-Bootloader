@@ -11,6 +11,7 @@
 
 #define WIFI_CONNECT_TIMEOUT 30
 #define MQTT_CONNECT_TIMEOUT 30
+#define CAN_CTRL_MSG_TIMEOUT 5
 
 #define MQTT_CLIENT "zephyr_bootloader_mqtt_client"
 #define MQTT_BROKER "broker.hivemq.com"
@@ -18,13 +19,8 @@
 #define MQTT_PUBLISH_TOPIC "system/gateway_board/publish/state"
 #define MQTT_SUBSCRIBE_TOPIC "system/gateway_board/subscribe/new_app"
 
-#define MQTT_MESSAGE_RX_BUFFER_SIZE 16384
+#define MQTT_MESSAGE_RX_BUFFER_SIZE 2048
 #define MQTT_MESSAGE_TX_BUFFER_SIZE 256
-
-// Received new firmware
-// Declared in wifi-utils.h,
-// defined in wifi-utils.c
-extern struct k_sem mqtt_msg_app_received;
 
 // Device connected to WiFi
 // Declared in wifi-utils.h,
@@ -35,10 +31,6 @@ extern atomic_t wifi_ready;
 // Declared in wifi-utils.h,
 // defined in wifi-utils.c
 extern atomic_t mqtt_ready;
-
-extern uint8_t tx_buffer[MQTT_MESSAGE_TX_BUFFER_SIZE];
-extern uint8_t rx_buffer[MQTT_MESSAGE_RX_BUFFER_SIZE];
-extern uint32_t rx_buffer_app_size;
 
 // Establish WiFi connection, blocking
 int setup_wifi();

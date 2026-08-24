@@ -4,24 +4,16 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/can.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(Gateway, LOG_LEVEL_DBG);
 
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 
-static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(can0));
-
 int main()
 {
     if (!device_is_ready(led.port)) {
         LOG_ERR("LED device not ready");
-        return 1;
-    }
-
-    if (!device_is_ready(can_dev)) {
-        LOG_ERR("CAN device not ready");
         return 1;
     }
 
@@ -31,7 +23,7 @@ int main()
         return 1;
     }
 
-    ret = setup_can_device(can_dev);
+    ret = setup_can_device();
     if (ret < 0) {
         LOG_ERR("Failed to setup can device, error %d", ret);
         return 1;
@@ -69,20 +61,6 @@ int main()
             LOG_ERR("Failed to poll MQTT socket, error %d", ret);
             k_sleep(K_SECONDS(WAIT_ON_ERROR_TIME));
             continue;
-        }
-
-        ret = k_sem_take(&mqtt_msg_app_received, K_NO_WAIT);
-        if (ret == 0) {
-            LOG_INF("Msg received, handling...");
-            LOG_INF("Programming app of size %d", rx_buffer_app_size);
-            ret = send_user_application_buffer(can_dev);
-            if (ret != 0) {
-                LOG_ERR("Failed to program app, error %d", ret);
-            }
-        } else if (ret == -EBUSY) {
-            LOG_WRN("MQTT message not received");
-        } else {
-            LOG_ERR("Error when waiting for MQTT message, error %d", ret);
         }
     }
 
