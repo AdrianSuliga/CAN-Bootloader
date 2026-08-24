@@ -1,5 +1,6 @@
 import os
 import time
+import struct
 import subprocess
 import paho.mqtt.client as mqtt
 
@@ -27,6 +28,14 @@ subprocess.run(
 if not os.path.exists(BIN_PATH):
     raise FileNotFoundError("Failed to create binary")
 
+# Two 2-byte numbers
+number1 = 0x400
+number2 = 0x401
+
+# < = little-endian
+# H = unsigned 2-byte integer
+header = struct.pack("<HH", number1, number2)
+
 # Read binary firmware
 with open(BIN_PATH, "rb") as f:
     firmware_data = f.read()
@@ -44,7 +53,7 @@ print(f"Publishing firmware to topic: {TOPIC}")
 
 result = client.publish(
     TOPIC,
-    payload=firmware_data,
+    payload=header + firmware_data,
     qos=1,
 )
 
