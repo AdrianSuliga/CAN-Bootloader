@@ -72,7 +72,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  HAL_StatusTypeDef res;
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -105,16 +105,29 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   memset((void*)new_user_app_buffer, 0xFF, USER_APP_BUFFER_SIZE);
 
+  // After initialization was successful, confirm to
+  // gateway board that bootloader is ready
+  res = HAL_CAN_SendControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
+  if (res != HAL_OK) {
+    while (1) {}
+  }
+
   while (1)
   {
     if (write_ready) {
 
-      HAL_StatusTypeDef res = Flash_Erase_User_App_Slot(USER_APP_SLOT_1);
+      res = Flash_Erase_User_App_Slot(USER_APP_SLOT_1);
       if (res != HAL_OK) {
         while (1) {}
       }
 
       res = Flash_Write_User_App(USER_APP_SLOT_1);
+      if (res != HAL_OK) {
+        while (1) {}
+      }
+
+      // Confirm to gateway board that flashing was a success
+      res = HAL_CAN_SendControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
       if (res != HAL_OK) {
         while (1) {}
       }

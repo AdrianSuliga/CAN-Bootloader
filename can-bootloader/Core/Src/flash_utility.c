@@ -43,7 +43,7 @@ HAL_StatusTypeDef Flash_Erase_User_App_Slot(enum UserApplicationSlot slot)
 
 HAL_StatusTypeDef Flash_Write_User_App(enum UserApplicationSlot slot)
 {
-  // Validate caller wants to erase valid slot
+  // Validate caller wants to use valid slot
   if (slot != USER_APP_SLOT_1 && slot != USER_APP_SLOT_2) {
     return HAL_ERROR;
   }
@@ -63,9 +63,9 @@ HAL_StatusTypeDef Flash_Write_User_App(enum UserApplicationSlot slot)
     
     // Flash memory is arranged in 32-bit words
     uint32_t word_size = sizeof(uint32_t);
-    uint32_t word1;
+    uint32_t word;
     
-    memcpy(&word1, (void*)(new_user_app_buffer + i), word_size);
+    memcpy(&word, (void*)(new_user_app_buffer + i), word_size);
 
     // Clear Flash flags
     FLASH_CLEAR_FLAGS();
@@ -74,10 +74,10 @@ HAL_StatusTypeDef Flash_Write_User_App(enum UserApplicationSlot slot)
     FLASH_WaitForLastOperation(50000);
 
     // Program one 32-bit word of new user application
-    result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, base_address + i, word1);
+    result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, base_address + i, word);
     if (result != HAL_OK) {
-      __enable_irq();
       HAL_FLASH_Lock();
+      __enable_irq();
       return result;
     }
 
