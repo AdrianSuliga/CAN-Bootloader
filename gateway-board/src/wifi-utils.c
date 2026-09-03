@@ -49,6 +49,8 @@ static void mqtt_handler(struct mqtt_client *client, const struct mqtt_evt *evt)
 static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size);
 static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id, int rx_buffer_current_size);
 static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt *evt);
+static int bootloader_start(int control_frame_id);
+static int bootloader_stop(int control_frame_id);
 
 /* ***************** */
 /* MODULE PUBLIC API */
@@ -408,9 +410,9 @@ static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id,
     if (err) {
         LOG_ERR("Failed to send firmware, aborting. Error %d", err);
         
-        // If continuing flashing is not possible, sent EOT frame so
+        // If continuing flashing is not possible, sent control frame so
         // bootloader can recover to previous app image
-        int ret = send_control_frame(control_frame_id);
+        int ret = send_wait_control_frame(control_frame_id);
         if (ret) {
             LOG_ERR("Failed to end transmission, node left in unknown state, error %d", ret);
             return ret;
@@ -420,6 +422,26 @@ static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id,
     }
 
     return 0;
+}
+
+static int bootloader_start(int control_frame_id)
+{
+    int ret = send_wait_control_frame(control_frame_id);
+    if (ret != 0) {
+        LOG_ERR("Failed to start bootloader, error %d", ret);
+    }
+
+    return ret;
+}
+
+static int bootloader_stop(int control_frame_id)
+{
+    int ret = send_wait_control_frame(control_frame_id);
+    if (ret != 0) {
+        LOG_ERR("Failed to stop bootloader, node left in unknown state, error %d", ret);
+    }
+
+    return ret;
 }
 
 static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt *evt)
@@ -457,16 +479,11 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
     LOG_INF("CAN frames read - [%02X] [%02X]", control_frame_id, firmware_frame_id);
     LOG_INF("Proceeding with firmware flashing");
 
-    // TODO: implement control functionality, design TBD
-    // Control frame so app jumps to bootloader
-    // int err = send_control_frame(control_frame_id);
-    // if (err) {
-    //     LOG_ERR("Failed to end transmission, node left in unknown state, error %d", err);
-    //     return err;
-    // }
-
-    // Give node some time to jump from app to bootloader
-    k_sleep(K_SECONDS(1));
+    // Make current app jump to bootloader
+    ret = bootloader_start(control_frame_id);
+    if (ret != 0) {
+        return ret;
+    }
 
     // Process payload in a loop
     while (payload_read < payload_len) {
@@ -515,10 +532,9 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
         buffer_read = 0;
         memset(rx_buffer, 0, MQTT_MESSAGE_RX_BUFFER_SIZE);
     
-        // Control frame so bootloader knows to jump to newly flashed app
-        ret = send_control_frame(control_frame_id);
-        if (ret) {
-            LOG_ERR("Failed to end transmission, node left in unknown state, error %d", ret);
+        // Stop bootloader, jump to newly flashed app
+        ret = bootloader_stop(control_frame_id);
+        if (ret != 0) {
             return ret;
         }
     } else {

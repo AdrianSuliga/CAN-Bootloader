@@ -6,11 +6,17 @@
 
 LOG_MODULE_REGISTER(CanUtils, LOG_LEVEL_DBG);
 
+K_SEM_DEFINE(can_ctrl_frame_sem, 0, 1);
+
 static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(can0));
+static volatile int current_can_control_frame = -1;
 
 static void rx_callback(const struct device *dev, struct can_frame *frame, void *user_data) 
 {
-    LOG_INF("Received msg %d", frame->id);
+    LOG_INF("Received CAN frame with ID %d, comparing with global ID %d", frame->id, current_can_control_frame);
+    if ((int)frame->id == current_can_control_frame) {
+        k_sem_give(&can_ctrl_frame_sem);
+    }
 }
 
 static void tx_callback(const struct device *dev, int error, void *user_data)
@@ -66,7 +72,33 @@ int send_can_frame(int id, uint8_t *data, size_t size)
     return can_send(can_dev, &frame, K_FOREVER, &tx_callback, NULL);
 }
 
-int send_control_frame(int eot_frame_id)
+int send_control_frame(int ctrl_frame_id)
 {
-    return send_can_frame(eot_frame_id, NULL, 0);
+    return send_can_frame(ctrl_frame_id, NULL, 0);
+}
+
+int send_wait_control_frame(int ctrl_frame_id)
+{
+    // Set global CAN CTRL frame ID
+    current_can_control_frame = ctrl_frame_id;
+
+    // Send CAN CTRL frame
+    int ret = send_control_frame(ctrl_frame_id);
+    if (ret != 0) {
+        LOG_ERR("Failed to send CTRL frame to node, error %d", ret);
+        return ret;
+    }
+
+    // Wait for CAN CTRL frame back
+    ret = k_sem_take(&can_ctrl_frame_sem, K_SECONDS(CAN_CTRL_MSG_TIMEOUT));
+    if (ret != 0) {
+        LOG_ERR("Failed to receive CTRL message back, node in unknown state, error %d", ret);
+    } else {
+        LOG_INF("Received CTRL message, bootloader success confirmed");
+    }
+
+    // Reset global state
+    current_can_control_frame = -1;
+
+    return ret;
 }

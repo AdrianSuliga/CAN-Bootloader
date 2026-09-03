@@ -11,7 +11,6 @@
 
 #define WIFI_CONNECT_TIMEOUT 30
 #define MQTT_CONNECT_TIMEOUT 30
-#define CAN_CTRL_MSG_TIMEOUT 5
 
 #define MQTT_CLIENT "zephyr_bootloader_mqtt_client"
 #define MQTT_BROKER "broker.hivemq.com"
