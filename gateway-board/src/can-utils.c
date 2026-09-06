@@ -9,12 +9,12 @@ LOG_MODULE_REGISTER(CanUtils, LOG_LEVEL_DBG);
 K_SEM_DEFINE(can_ctrl_frame_sem, 0, 1);
 
 static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(can0));
-static volatile int current_can_control_frame = -1;
+static volatile uint32_t current_can_control_frame = UINT32_MAX;
 
 static void rx_callback(const struct device *dev, struct can_frame *frame, void *user_data) 
 {
-    LOG_INF("Received CAN frame with ID %d, comparing with global ID %d", frame->id, current_can_control_frame);
-    if ((int)frame->id == current_can_control_frame) {
+    LOG_INF("Received CAN frame with ID 0x%02X, comparing with global ID 0x%02X", frame->id, current_can_control_frame);
+    if (frame->id == current_can_control_frame) {
         k_sem_give(&can_ctrl_frame_sem);
     }
 }

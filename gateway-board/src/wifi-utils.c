@@ -476,7 +476,7 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
     }
     payload_read += ret;
 
-    LOG_INF("CAN frames read - [%02X] [%02X]", control_frame_id, firmware_frame_id);
+    LOG_INF("CAN frames read - [0x%02X] [0x%02X]", control_frame_id, firmware_frame_id);
     LOG_INF("Proceeding with firmware flashing");
 
     // Make current app jump to bootloader
