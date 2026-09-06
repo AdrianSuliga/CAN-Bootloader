@@ -22,7 +22,7 @@ extern "C" {
 #define CAN_FRAME_FIRMWARE_FRAGMENT_ID ...
 
 // Size of buffer for user application
-#define USER_APP_BUFFER_SIZE 8192U
+#define USER_APP_BUFFER_SIZE 16384U
 
 // Declared in can_utility.h, defined in can_utility.c
 // Buffer for new user application
