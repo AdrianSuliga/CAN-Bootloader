@@ -1,0 +1,16 @@
+config MQTT_MESSAGE_RX_BUFFER_SIZE
+    int "Set size of MQTT buffer RX size."
+    range 128 65536
+    default 2048
+    help
+        This buffer is used to store fragments of new user application. The bigger, the more
+        efficient flashing process will be.
+
+config MQTT_MESSAGE_TX_BUFFER_SIZE
+    int "Set size of MQTT buffer RX size."
+    range 128 1024
+    default 128
+    help
+        Used to store debug messages before publishing them. Should be minimum of 128.
+
+source "Kconfig.zephyr"

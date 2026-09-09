@@ -18,9 +18,6 @@
 #define MQTT_PUBLISH_TOPIC "system/gateway_board/publish/state"
 #define MQTT_SUBSCRIBE_TOPIC "system/gateway_board/subscribe/new_app"
 
-#define MQTT_MESSAGE_RX_BUFFER_SIZE 2048
-#define MQTT_MESSAGE_TX_BUFFER_SIZE 256
-
 // Device connected to WiFi
 // Declared in wifi-utils.h,
 // defined in wifi-utils.c

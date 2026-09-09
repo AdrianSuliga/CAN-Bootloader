@@ -22,8 +22,8 @@ atomic_t wifi_ready = ATOMIC_INIT(0x0);
 atomic_t mqtt_ready = ATOMIC_INIT(0x0);
 
 /* MQTT buffers */
-static uint8_t rx_buffer[MQTT_MESSAGE_RX_BUFFER_SIZE] = { 0x0 };
-static uint8_t tx_buffer[MQTT_MESSAGE_TX_BUFFER_SIZE] = { 0x0 };
+static uint8_t rx_buffer[CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE] = { 0x0 };
+static uint8_t tx_buffer[CONFIG_MQTT_MESSAGE_TX_BUFFER_SIZE] = { 0x0 };
 
 /* WiFi and MQTT internal structs */
 static struct net_mgmt_event_callback wifi_callback;
@@ -299,7 +299,7 @@ static int consume_payload_on_error(struct mqtt_client *client)
 
     int read = 1;
     while (read > 0) {
-        read = mqtt_read_publish_payload(client, rx_buffer, MQTT_MESSAGE_RX_BUFFER_SIZE);
+        read = mqtt_read_publish_payload(client, rx_buffer, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
         
         if (read == -EAGAIN) {
             read = 1;
@@ -309,7 +309,7 @@ static int consume_payload_on_error(struct mqtt_client *client)
             return read;
         }
 
-        memset(rx_buffer, 0, MQTT_MESSAGE_RX_BUFFER_SIZE);
+        memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
     }
 
     return read;
@@ -447,7 +447,7 @@ static int bootloader_stop(int control_frame_id)
 static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt *evt)
 {
     int ret;
-    memset(rx_buffer, 0, MQTT_MESSAGE_RX_BUFFER_SIZE);
+    memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
 
     // How many bytes were read to buffer
     uint32_t buffer_read = 0;
@@ -488,7 +488,7 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
     // Process payload in a loop
     while (payload_read < payload_len) {
         int n = mqtt_read_publish_payload(client, rx_buffer + buffer_read,
-                                          MQTT_MESSAGE_RX_BUFFER_SIZE - buffer_read);
+                                          CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE - buffer_read);
         if (n == -EAGAIN) {
             k_sleep(K_SECONDS(1));
             continue;
@@ -502,11 +502,11 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
 
         LOG_INF("Read MQTT payload (%d / %d), RX buffer (%d / %d)",
                 payload_read, payload_len,
-                buffer_read, MQTT_MESSAGE_RX_BUFFER_SIZE);
+                buffer_read, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
 
         // If buffer is full, send it to bootloader
-        if (buffer_read == MQTT_MESSAGE_RX_BUFFER_SIZE) {
-            ret = send_rx_buffer_protected(control_frame_id, firmware_frame_id, MQTT_MESSAGE_RX_BUFFER_SIZE);
+        if (buffer_read == CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE) {
+            ret = send_rx_buffer_protected(control_frame_id, firmware_frame_id, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
             if (ret) {
                 LOG_ERR("Flashing CAN RX buffer failed, node left in unknown state, error %d", ret);
                 return ret;
@@ -514,7 +514,7 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
 
             // Reset buffer state
             buffer_read = 0;
-            memset(rx_buffer, 0, MQTT_MESSAGE_RX_BUFFER_SIZE);
+            memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
         }
     }
 
@@ -530,7 +530,7 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
 
         // Reset buffer state
         buffer_read = 0;
-        memset(rx_buffer, 0, MQTT_MESSAGE_RX_BUFFER_SIZE);
+        memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
     
         // Stop bootloader, jump to newly flashed app
         ret = bootloader_stop(control_frame_id);
