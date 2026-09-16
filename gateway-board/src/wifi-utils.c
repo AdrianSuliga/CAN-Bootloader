@@ -51,6 +51,7 @@ static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id,
 static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt *evt);
 static int bootloader_start(int control_frame_id);
 static int bootloader_stop(int control_frame_id);
+static int bootloader_abort(int control_frame_id);
 
 /* ***************** */
 /* MODULE PUBLIC API */
@@ -410,15 +411,8 @@ static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id,
     if (err) {
         LOG_ERR("Failed to send firmware, aborting. Error %d", err);
         
-        // If continuing flashing is not possible, sent control frame so
-        // bootloader can recover to previous app image
-        int ret = send_wait_control_frame(control_frame_id);
-        if (ret) {
-            LOG_ERR("Failed to end transmission, node left in unknown state, error %d", ret);
-            return ret;
-        }
-
-        return err;
+        // If continuing flashing is not possible, try to recover to previous app
+        return bootloader_abort(control_frame_id);
     }
 
     return 0;
@@ -426,7 +420,7 @@ static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id,
 
 static int bootloader_start(int control_frame_id)
 {
-    int ret = send_wait_control_frame(control_frame_id);
+    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_START);
     if (ret != 0) {
         LOG_ERR("Failed to start bootloader, error %d", ret);
     }
@@ -436,9 +430,19 @@ static int bootloader_start(int control_frame_id)
 
 static int bootloader_stop(int control_frame_id)
 {
-    int ret = send_wait_control_frame(control_frame_id);
+    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_FINISH);
     if (ret != 0) {
         LOG_ERR("Failed to stop bootloader, node left in unknown state, error %d", ret);
+    }
+
+    return ret;
+}
+
+static int bootloader_abort(int control_frame_id)
+{
+    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_ABORT);
+    if (ret != 0) {
+        LOG_ERR("Failed to abort bootloader, node left in unknown state, error %d", ret);
     }
 
     return ret;
@@ -533,14 +537,9 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
         memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
     
         // Stop bootloader, jump to newly flashed app
-        ret = bootloader_stop(control_frame_id);
-        if (ret != 0) {
-            return ret;
-        }
+        return bootloader_stop(control_frame_id);
     } else {
-        LOG_ERR("Failed to read full payload");
-        return 1;
+        LOG_ERR("Failed to read full payload, trying to abort");
+        return bootloader_abort(control_frame_id);
     }
-
-    return 0;
 }

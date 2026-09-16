@@ -14,9 +14,20 @@ static volatile uint32_t current_can_control_frame = UINT32_MAX;
 static void rx_callback(const struct device *dev, struct can_frame *frame, void *user_data) 
 {
     LOG_INF("Received CAN frame with ID 0x%02X, comparing with global ID 0x%02X", frame->id, current_can_control_frame);
-    if (frame->id == current_can_control_frame) {
-        k_sem_give(&can_ctrl_frame_sem);
+
+    if (frame->id != current_can_control_frame) {
+        return;
     }
+
+    if (frame->dlc != 1) {
+        return;
+    }
+
+    if (frame->data[0] != BOOTLOADER_COMMAND_ACK) {
+        return;
+    }
+
+    k_sem_give(&can_ctrl_frame_sem);
 }
 
 static void tx_callback(const struct device *dev, int error, void *user_data)
@@ -72,18 +83,18 @@ int send_can_frame(int id, uint8_t *data, size_t size)
     return can_send(can_dev, &frame, K_FOREVER, &tx_callback, NULL);
 }
 
-int send_control_frame(int ctrl_frame_id)
+int send_control_frame(int ctrl_frame_id, uint8_t command)
 {
-    return send_can_frame(ctrl_frame_id, NULL, 0);
+    return send_can_frame(ctrl_frame_id, &command, sizeof(uint8_t));
 }
 
-int send_wait_control_frame(int ctrl_frame_id)
+int send_wait_control_frame(int ctrl_frame_id, uint8_t command)
 {
     // Set global CAN CTRL frame ID
     current_can_control_frame = ctrl_frame_id;
 
     // Send CAN CTRL frame
-    int ret = send_control_frame(ctrl_frame_id);
+    int ret = send_control_frame(ctrl_frame_id, command);
     if (ret != 0) {
         LOG_ERR("Failed to send CTRL frame to node, error %d", ret);
         return ret;
