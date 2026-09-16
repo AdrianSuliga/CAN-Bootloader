@@ -21,6 +21,12 @@ extern "C" {
 // Has to be manually set for each system node.
 #define CAN_FRAME_FIRMWARE_FRAGMENT_ID ...
 
+// Command messages used in payload of
+// bootloader control messages
+#define BOOTLOADER_COMMAND_FINISH 1
+#define BOOTLOADER_COMMAND_ACK    2
+#define BOOTLOADER_COMMAND_ABORT  3
+
 // Size of buffer for user application
 #define USER_APP_BUFFER_SIZE 16384U
 
@@ -39,7 +45,7 @@ extern volatile int write_ready;
 // Callback for receiving new CAN frame
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
 
-// Function to send control message via CAN
+// Function to send control message with ACK command via CAN
 HAL_StatusTypeDef HAL_CAN_SendControlFrame(CAN_HandleTypeDef *hcan, uint32_t timeout_ms);
 
 #ifdef __cplusplus

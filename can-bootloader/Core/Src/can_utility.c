@@ -43,8 +43,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   } else if (rxHeader.StdId == CAN_FRAME_BOOTLOADER_CTRL_ID) {
     // App transmition finished
 
-    write_ready = 1;
+    uint8_t command = data[0];
 
+    if (command == BOOTLOADER_COMMAND_FINISH) {
+      write_ready = 1;
+    } else if (command == BOOTLOADER_COMMAND_ABORT) {
+      // TODO initiate jump to previous slot here
+      // when 2-slot solution is ready
+      write_ready = 1;
+    }
   }
 }
 
@@ -54,11 +61,13 @@ HAL_StatusTypeDef HAL_CAN_SendControlFrame(CAN_HandleTypeDef *hcan, uint32_t tim
     .IDE   = CAN_ID_STD,
     .StdId = CAN_FRAME_BOOTLOADER_CTRL_ID,
     .RTR   = CAN_RTR_DATA,
-    .DLC   = 0
+    .DLC   = 1
   };
   uint32_t TxMailbox;
 
-  HAL_StatusTypeDef res = HAL_CAN_AddTxMessage(hcan, &TxHeader, NULL, &TxMailbox);
+  uint8_t command = BOOTLOADER_COMMAND_ACK;
+
+  HAL_StatusTypeDef res = HAL_CAN_AddTxMessage(hcan, &TxHeader, &command, &TxMailbox);
   if (res != HAL_OK) {
     return res;
   }
