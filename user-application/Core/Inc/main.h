@@ -61,6 +61,8 @@ void Error_Handler(void);
 #define MCO_GPIO_Port GPIOH
 #define LED1_Pin GPIO_PIN_0
 #define LED1_GPIO_Port GPIOB
+#define LED3_Pin GPIO_PIN_14
+#define LED3_GPIO_Port GPIOB
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14

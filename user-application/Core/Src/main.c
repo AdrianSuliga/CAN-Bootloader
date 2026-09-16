@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32f7xx_hal_can.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -34,6 +33,7 @@
 /* USER CODE BEGIN PD */
 // ID of CAN control frame, has to be manually defined
 #define CAN_FRAME_BOOTLOADER_CTRL_ID ...
+#define BOOTLOADER_COMMAND_START 0
 #define BOOTLOADER_ADDR 0x08000000
 /* USER CODE END PD */
 
@@ -104,12 +104,23 @@ void jump_to_bootloader(void)
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
   CAN_RxHeaderTypeDef rxHeader;
+  uint8_t data[8];
 
-  HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, NULL);
+  HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, data);
 
-  if (rxHeader.StdId == CAN_FRAME_BOOTLOADER_CTRL_ID) {
-    bootloader_flag = 1;
+  if (rxHeader.StdId != CAN_FRAME_BOOTLOADER_CTRL_ID) {
+    return;
   }
+
+  if (rxHeader.DLC != 1) {
+    return;
+  }
+
+  if (data[0] != BOOTLOADER_COMMAND_START) {
+    return;
+  }
+
+  bootloader_flag = 1;
 }
 
 HAL_StatusTypeDef HAL_CAN_SendControlFrame(CAN_HandleTypeDef *hcan, uint32_t timeout_ms)
@@ -197,8 +208,10 @@ int main(void)
       jump_to_bootloader();
     }
 
+    HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
+    HAL_Delay(100);
     HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    HAL_Delay(1000);
+    HAL_Delay(200);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -320,14 +333,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED3_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : LED1_Pin */
-  GPIO_InitStruct.Pin = LED1_Pin;
+  /*Configure GPIO pins : LED1_Pin LED3_Pin */
+  GPIO_InitStruct.Pin = LED1_Pin|LED3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
