@@ -37,7 +37,7 @@ BU_:
 
 
 BO_ 0 MOTOR_BOARD_BOOTLOADER_CTRL: 8 Vector__XXX
-	SG_ Dummy : 0|64@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Command : 0|2@1+ (1,0) [0|3] "" Vector__XXX
 
 BO_ 1 MOTOR_BOARD_BOOTLOADER_FIRMWARE: 8 Vector__XXX
 	SG_ Firmware : 0|64@1+ (0,0) [0|0] "" Vector__XXX
@@ -48,7 +48,7 @@ BO_ 2 MOTOR_BOARD_DUMMY: 8 Vector__XXX
 	SG_ Value3 : 32|32@1- (0.1,0) [-200|1200] "" Vector__XXX
 
 BO_ 1024 BMS_BOARD_BOOTLOADER_CTRL: 8 Vector__XXX
-	SG_ Dummy : 0|64@1+ (0,0) [0|0] "" Vector__XXX
+	SG_ Command : 0|2@1+ (1,0) [0|3] "" Vector__XXX
 
 BO_ 1025 BMS_BOARD_BOOTLOADER_FIRMWARE: 8 Vector__XXX
 	SG_ Firmware : 0|64@1+ (0,0) [0|0] "" Vector__XXX
@@ -89,3 +89,4 @@ BA_ "ProtocolType" "";
 BA_ "BusType" "CAN";
 BA_ "DatabaseCompiler" "CSS ELECTRONICS (WWW.CSSELECTRONICS.COM)";
 BA_ "DatabaseVersion" "1.0.0";
+
