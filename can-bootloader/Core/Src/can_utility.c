@@ -55,7 +55,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   }
 }
 
-HAL_StatusTypeDef HAL_CAN_SendControlFrame(CAN_HandleTypeDef *hcan, uint32_t timeout_ms)
+HAL_StatusTypeDef CAN_Send_ControlFrame(CAN_HandleTypeDef *hcan, uint32_t timeout_ms)
 {
   CAN_TxHeaderTypeDef TxHeader = {
     .IDE   = CAN_ID_STD,

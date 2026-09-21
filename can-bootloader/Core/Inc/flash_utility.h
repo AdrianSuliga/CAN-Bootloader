@@ -10,6 +10,7 @@ extern "C" {
 
 // User application slot
 enum UserApplicationSlot {
+    USER_APP_SLOT_INVALID = -1,
     USER_APP_SLOT_1,
     USER_APP_SLOT_2
 };
@@ -40,11 +41,11 @@ enum UserApplicationSlot {
                            FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | \
                            FLASH_FLAG_PGPERR | FLASH_FLAG_ERSERR)
 
-// Erase Flash sectors for given slot
-HAL_StatusTypeDef Flash_Erase_User_App_Slot(enum UserApplicationSlot slot);
+// Erase Flash sectors for target slot
+HAL_StatusTypeDef Flash_Erase_TargetSlot();
 
-// Write content of new_user_app_buffer to given slot
-HAL_StatusTypeDef Flash_Write_User_App(enum UserApplicationSlot slot);
+// Write content of CAN receive buffer to target slot
+HAL_StatusTypeDef Flash_Write_CANRxBuffer();
 
 #ifdef __cplusplus
 }

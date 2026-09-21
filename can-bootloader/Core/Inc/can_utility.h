@@ -46,7 +46,7 @@ extern volatile int write_ready;
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
 
 // Function to send control message with ACK command via CAN
-HAL_StatusTypeDef HAL_CAN_SendControlFrame(CAN_HandleTypeDef *hcan, uint32_t timeout_ms);
+HAL_StatusTypeDef CAN_Send_ControlFrame(CAN_HandleTypeDef *hcan, uint32_t timeout_ms);
 
 #ifdef __cplusplus
 }

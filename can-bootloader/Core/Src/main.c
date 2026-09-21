@@ -103,11 +103,23 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  // TODO implement 2-slot solution - get slot state
+  target_slot = USER_APP_SLOT_1;
+  
+  // Sleep for 1s to finish initialization
+  HAL_Delay(1000);
+
+  // Erase target Flash slot
+  res = Flash_Erase_TargetSlot(target_slot);
+  if (res != HAL_OK) {
+    Boot_Recover_OldUserApplication();
+  }
+
+  // Initialize CAN receive buffer
   memset((void*)new_user_app_buffer, 0xFF, USER_APP_BUFFER_SIZE);
 
-  // After initialization was successful, confirm to
-  // gateway board that bootloader is ready
-  res = HAL_CAN_SendControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
+  // Confirm to gateway board that bootloader is ready
+  res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
   if (res != HAL_OK) {
     while (1) {}
   }
@@ -116,23 +128,18 @@ int main(void)
   {
     if (write_ready) {
 
-      res = Flash_Erase_User_App_Slot(USER_APP_SLOT_1);
+      res = Flash_Write_CANRxBuffer();
       if (res != HAL_OK) {
-        while (1) {}
-      }
-
-      res = Flash_Write_User_App(USER_APP_SLOT_1);
-      if (res != HAL_OK) {
-        while (1) {}
+        Boot_Recover_OldUserApplication();
       }
 
       // Confirm to gateway board that flashing was a success
-      res = HAL_CAN_SendControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
+      res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
       if (res != HAL_OK) {
-        while (1) {}
+        Boot_Recover_OldUserApplication();
       }
 
-      jump_to_app(USER_APP_SLOT_1);
+      Boot_Start_NewUserApplication();
     }
 
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);

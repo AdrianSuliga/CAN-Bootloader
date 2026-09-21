@@ -1,11 +1,12 @@
 #include "flash_utility.h"
+#include "boot_utility.h"
 #include "can_utility.h"
 #include "string.h"
 
-HAL_StatusTypeDef Flash_Erase_User_App_Slot(enum UserApplicationSlot slot)
+HAL_StatusTypeDef Flash_Erase_TargetSlot()
 {
   // Validate caller wants to erase valid slot
-  if (slot != USER_APP_SLOT_1 && slot != USER_APP_SLOT_2) {
+  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
     return HAL_ERROR;
   }
 
@@ -24,9 +25,9 @@ HAL_StatusTypeDef Flash_Erase_User_App_Slot(enum UserApplicationSlot slot)
 
   erase.TypeErase = FLASH_TYPEERASE_SECTORS;
   erase.VoltageRange = VOLTAGE_RANGE_3;
-  erase.Sector = slot == USER_APP_SLOT_1 ?
+  erase.Sector = target_slot == USER_APP_SLOT_1 ?
                  USER_APP_SLOT_1_START : USER_APP_SLOT_2_START;
-  erase.NbSectors = slot == USER_APP_SLOT_2 ?
+  erase.NbSectors = target_slot == USER_APP_SLOT_1 ?
                     USER_APP_SLOT_1_SECTOR_CNT : USER_APP_SLOT_2_SECTOR_CNT;
 
   // Erase user application slots
@@ -41,15 +42,15 @@ HAL_StatusTypeDef Flash_Erase_User_App_Slot(enum UserApplicationSlot slot)
   return result;
 }
 
-HAL_StatusTypeDef Flash_Write_User_App(enum UserApplicationSlot slot)
+HAL_StatusTypeDef Flash_Write_CANRxBuffer()
 {
   // Validate caller wants to use valid slot
-  if (slot != USER_APP_SLOT_1 && slot != USER_APP_SLOT_2) {
+  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
     return HAL_ERROR;
   }
 
   HAL_StatusTypeDef result;
-  uint32_t base_address = slot == USER_APP_SLOT_1 ?
+  uint32_t base_address = target_slot == USER_APP_SLOT_1 ?
                           USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
 
   // Disable interrupts for Flash critical section

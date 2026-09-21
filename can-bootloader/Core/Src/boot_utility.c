@@ -1,14 +1,19 @@
 #include "boot_utility.h"
 #include "flash_utility.h"
 
-void jump_to_app(enum UserApplicationSlot slot)
+// Initiate invalid state, recover actual state in main.c
+enum UserApplicationSlot target_slot = USER_APP_SLOT_INVALID;
+enum UserApplicationSlot recovery_slot = USER_APP_SLOT_INVALID;
+
+void Boot_Start_NewUserApplication()
 {
   // Verify caller wants to jump to valid slot
-  if (slot != USER_APP_SLOT_1 && slot != USER_APP_SLOT_2) {
+  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
     return;
   }
 
-  uint32_t target = slot == USER_APP_SLOT_1 ? USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
+  uint32_t target = target_slot == USER_APP_SLOT_1 ?
+                      USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
 
   // Disable interrupts for critical section
   __disable_irq();
@@ -44,4 +49,10 @@ void jump_to_app(enum UserApplicationSlot slot)
 
   // User application starts here
   app_entry();
+}
+
+void Boot_Recover_OldUserApplication()
+{
+  // TODO implement 2-slot solution
+  while (1) {}
 }
