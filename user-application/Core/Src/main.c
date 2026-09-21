@@ -123,44 +123,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   bootloader_flag = 1;
 }
 
-HAL_StatusTypeDef HAL_CAN_SendControlFrame(CAN_HandleTypeDef *hcan, uint32_t timeout_ms)
-{
-  CAN_TxHeaderTypeDef TxHeader = {
-    .IDE   = CAN_ID_STD,
-    .StdId = CAN_FRAME_BOOTLOADER_CTRL_ID,
-    .RTR   = CAN_RTR_DATA,
-    .DLC   = 0
-  };
-  uint32_t TxMailbox;
-
-  HAL_StatusTypeDef res = HAL_CAN_AddTxMessage(hcan, &TxHeader, NULL, &TxMailbox);
-  if (res != HAL_OK) {
-    return res;
-  }
-
-  uint32_t start = HAL_GetTick();
-
-  while (HAL_CAN_IsTxMessagePending(hcan, TxMailbox)) {
-    if (HAL_GetTick() - start > timeout_ms) {
-      return HAL_TIMEOUT;
-    }
-  }
-
-  return HAL_OK;
-}
-
-/*
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-  CAN_RxHeaderTypeDef rxHeader;
-  uint8_t data[8];
-
-  HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, data);
-
-  if (rxHeader.StdId == 0x12) {
-    jump_to_bootloader();
-  }
-}*/
 /* USER CODE END 0 */
 
 /**
@@ -209,9 +171,8 @@ int main(void)
     }
 
     HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
-    HAL_Delay(100);
     HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    HAL_Delay(200);
+    HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
