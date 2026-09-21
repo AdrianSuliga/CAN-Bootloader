@@ -28,19 +28,19 @@ extern "C" {
 #define BOOTLOADER_COMMAND_ABORT  3
 
 // Size of buffer for user application
-#define USER_APP_BUFFER_SIZE 16384U
+#define CAN_RX_BUFFER_SIZE 4096U
 
 // Declared in can_utility.h, defined in can_utility.c
 // Buffer for new user application
-extern volatile uint8_t new_user_app_buffer[USER_APP_BUFFER_SIZE];
-
-// Declared in can_utility.h, defined in can_utility.c
-// Current writing position
-extern volatile int write_offset;
+extern volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE];
 
 // Declared in can_utility.h, defined in can_utility.c
 // Indicate that new user application is ready
-extern volatile int write_ready;
+extern volatile int app_ready;
+
+// Declared in can_utility.h, defined in can_utility.c
+// Indicate that error occured and abort is needed
+extern volatile int abort_required;
 
 // Callback for receiving new CAN frame
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);

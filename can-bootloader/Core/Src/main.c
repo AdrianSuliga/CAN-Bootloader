@@ -116,7 +116,7 @@ int main(void)
   }
 
   // Initialize CAN receive buffer
-  memset((void*)new_user_app_buffer, 0xFF, USER_APP_BUFFER_SIZE);
+  memset((void*)can_rx_buffer, 0xFF, CAN_RX_BUFFER_SIZE);
 
   // Confirm to gateway board that bootloader is ready
   res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
@@ -126,13 +126,7 @@ int main(void)
 
   while (1)
   {
-    if (write_ready) {
-
-      res = Flash_Write_CANRxBuffer();
-      if (res != HAL_OK) {
-        Boot_Recover_OldUserApplication();
-      }
-
+    if (app_ready) {
       // Confirm to gateway board that flashing was a success
       res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
       if (res != HAL_OK) {
@@ -140,6 +134,10 @@ int main(void)
       }
 
       Boot_Start_NewUserApplication();
+    }
+
+    if (abort_required) {
+      Boot_Recover_OldUserApplication();
     }
 
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);

@@ -1,57 +1,88 @@
 #include "can_utility.h"
-#include "main.h"
+#include "flash_utility.h"
 #include "stm32f7xx_hal.h"
 #include "string.h"
 
-volatile uint8_t new_user_app_buffer[USER_APP_BUFFER_SIZE] = { 0x0 };
+volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE] = { 0x0 };
 
-volatile int write_offset = 0;
-volatile int write_ready  = 0;
+static volatile uint32_t flash_offset = 0;
+static volatile uint32_t can_rx_buffer_offset = 0;
+
+volatile int abort_required = 0;
+volatile int app_ready      = 0;
+
+static HAL_StatusTypeDef CAN_Write_RxBuffer(uint32_t buffer_size)
+{
+  HAL_StatusTypeDef res = Flash_Write_CANRxBuffer(flash_offset);
+  if (res != HAL_OK) {
+    return res;
+  }
+
+  flash_offset += buffer_size;
+  can_rx_buffer_offset = 0;
+  memset((void*)can_rx_buffer, 0xFF, CAN_RX_BUFFER_SIZE);
+
+  return HAL_OK;
+}
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
+  HAL_StatusTypeDef res;
   CAN_RxHeaderTypeDef rxHeader;
   uint8_t data[8];
-
-  // Early return if buffer is full
-  if (write_offset >= USER_APP_BUFFER_SIZE) {
-    return;
-  }
 
   // Get frame payload
   HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, data);
 
-  if (rxHeader.StdId == CAN_FRAME_FIRMWARE_FRAGMENT_ID) {
+  switch (rxHeader.StdId) {
+
     // New app fragment received
+    case CAN_FRAME_FIRMWARE_FRAGMENT_ID:
 
-    if (rxHeader.DLC == 8) {
+      memcpy((void*)(can_rx_buffer + can_rx_buffer_offset), data, rxHeader.DLC);
+      can_rx_buffer_offset += rxHeader.DLC;
 
-      memcpy((void*)(new_user_app_buffer + write_offset), data, 8);
-      write_offset += 8;
+      if (can_rx_buffer_offset == CAN_RX_BUFFER_SIZE) {
+        res = CAN_Write_RxBuffer(CAN_RX_BUFFER_SIZE);
+        if (res != HAL_OK) {
+          abort_required;
+        }
+      }
 
-    } else {
+      break;
 
-      uint8_t buffer[8] = { 0x0 };
-      memset(buffer, 0xFF, 8);
-
-      memcpy(buffer, data, rxHeader.DLC);
-      memcpy((void*)(new_user_app_buffer + write_offset), buffer, 8);
-      write_offset += rxHeader.DLC;
-
-    }
-
-  } else if (rxHeader.StdId == CAN_FRAME_BOOTLOADER_CTRL_ID) {
     // App transmition finished
+    case CAN_FRAME_BOOTLOADER_CTRL_ID:
 
-    uint8_t command = data[0];
+      // Early return on malformed control frame
+      if (rxHeader.DLC != 1) {
+        return;
+      }
 
-    if (command == BOOTLOADER_COMMAND_FINISH) {
-      write_ready = 1;
-    } else if (command == BOOTLOADER_COMMAND_ABORT) {
-      // TODO initiate jump to previous slot here
-      // when 2-slot solution is ready
-      write_ready = 1;
-    }
+      uint8_t command = data[0];
+
+      if (command == BOOTLOADER_COMMAND_FINISH) {
+
+        // If transmission ended with success,
+        // flash what remains in receive buffer
+        res = CAN_Write_RxBuffer(can_rx_buffer_offset);
+        if (res == HAL_OK) {
+          app_ready = 1;
+        } else {
+          abort_required = 1;
+        }
+
+      } else if (command == BOOTLOADER_COMMAND_ABORT) {
+
+        abort_required = 1;
+
+      }
+
+      break;
+
+    // Every other CAN frame is ignored
+    default:
+      break;
   }
 }
 

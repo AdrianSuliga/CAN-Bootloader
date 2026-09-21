@@ -42,7 +42,7 @@ HAL_StatusTypeDef Flash_Erase_TargetSlot()
   return result;
 }
 
-HAL_StatusTypeDef Flash_Write_CANRxBuffer()
+HAL_StatusTypeDef Flash_Write_CANRxBuffer(uint32_t offset)
 {
   // Validate caller wants to use valid slot
   if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
@@ -51,7 +51,8 @@ HAL_StatusTypeDef Flash_Write_CANRxBuffer()
 
   HAL_StatusTypeDef result;
   uint32_t base_address = target_slot == USER_APP_SLOT_1 ?
-                          USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
+                            USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
+  uint32_t write_address = base_address + offset;
 
   // Disable interrupts for Flash critical section
   __disable_irq();
@@ -60,13 +61,13 @@ HAL_StatusTypeDef Flash_Write_CANRxBuffer()
   HAL_FLASH_Unlock();
 
   // Loop through buffer and save its content to user application slot
-  for (int i = 0; i < USER_APP_BUFFER_SIZE; i += 4) {
+  for (int i = 0; i < CAN_RX_BUFFER_SIZE; i += 4) {
     
     // Flash memory is arranged in 32-bit words
     uint32_t word_size = sizeof(uint32_t);
     uint32_t word;
     
-    memcpy(&word, (void*)(new_user_app_buffer + i), word_size);
+    memcpy(&word, (void*)(can_rx_buffer + i), word_size);
 
     // Clear Flash flags
     FLASH_CLEAR_FLAGS();
@@ -75,7 +76,7 @@ HAL_StatusTypeDef Flash_Write_CANRxBuffer()
     FLASH_WaitForLastOperation(50000);
 
     // Program one 32-bit word of new user application
-    result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, base_address + i, word);
+    result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, write_address + i, word);
     if (result != HAL_OK) {
       HAL_FLASH_Lock();
       __enable_irq();
@@ -89,12 +90,6 @@ HAL_StatusTypeDef Flash_Write_CANRxBuffer()
 
   // Enable interrupts after Flash critical section
   __enable_irq();
-
-  // Reset buffer state
-  write_ready = 0;
-  write_offset = 0;
-
-  memset((void*)new_user_app_buffer, 0xFF, USER_APP_BUFFER_SIZE);
 
   return HAL_OK;
 }

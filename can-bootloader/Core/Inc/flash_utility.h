@@ -45,7 +45,8 @@ enum UserApplicationSlot {
 HAL_StatusTypeDef Flash_Erase_TargetSlot();
 
 // Write content of CAN receive buffer to target slot
-HAL_StatusTypeDef Flash_Write_CANRxBuffer();
+// moved by offset
+HAL_StatusTypeDef Flash_Write_CANRxBuffer(uint32_t offset);
 
 #ifdef __cplusplus
 }
