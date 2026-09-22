@@ -2,12 +2,15 @@
 #include "flash_utility.h"
 #include "stm32f7xx_hal.h"
 #include "string.h"
+#include "main.h"
 
 volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE] = { 0x0 };
 
-static volatile uint32_t flash_offset = 0;
+// Offsets for writing operations
 static volatile uint32_t can_rx_buffer_offset = 0;
+static volatile uint32_t flash_offset         = 0;
 
+// Flags for bootloader control
 volatile int abort_required = 0;
 volatile int app_ready      = 0;
 
@@ -19,6 +22,7 @@ static HAL_StatusTypeDef CAN_Write_RxBuffer(uint32_t buffer_size)
   }
 
   flash_offset += buffer_size;
+  // Reset buffer state after write
   can_rx_buffer_offset = 0;
   memset((void*)can_rx_buffer, 0xFF, CAN_RX_BUFFER_SIZE);
 
@@ -34,14 +38,28 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
   // Get frame payload
   HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, data);
 
+  // Timer reset when communication still active
+  switch (rxHeader.StdId) {
+    case CAN_FRAME_FIRMWARE_FRAGMENT_ID:
+    case CAN_FRAME_BOOTLOADER_CTRL_ID:
+      __HAL_TIM_SET_COUNTER(&htim6, 0);
+      break;
+
+    default:
+      break;
+  }
+
+  // Handle frame
   switch (rxHeader.StdId) {
 
     // New app fragment received
     case CAN_FRAME_FIRMWARE_FRAGMENT_ID:
 
+      // Write new fragment to CAN receive buffer
       memcpy((void*)(can_rx_buffer + can_rx_buffer_offset), data, rxHeader.DLC);
       can_rx_buffer_offset += rxHeader.DLC;
 
+      // If buffer is full, write it to Flash
       if (can_rx_buffer_offset == CAN_RX_BUFFER_SIZE) {
         res = CAN_Write_RxBuffer(CAN_RX_BUFFER_SIZE);
         if (res != HAL_OK) {

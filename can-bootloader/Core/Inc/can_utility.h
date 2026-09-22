@@ -28,7 +28,7 @@ extern "C" {
 #define BOOTLOADER_COMMAND_ABORT  3
 
 // Size of buffer for user application
-#define CAN_RX_BUFFER_SIZE 4096U
+#define CAN_RX_BUFFER_SIZE 8192U
 
 // Declared in can_utility.h, defined in can_utility.c
 // Buffer for new user application
