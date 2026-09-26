@@ -3,6 +3,9 @@
 
 #include <zephyr/device.h>
 
+// Timeout for accessing CAN TX mailbox
+#define CAN_TX_MAILBOX_TIMEOUT 5
+
 // Timeout waiting for CAN control message back
 #define CAN_CTRL_MSG_TIMEOUT 10
 

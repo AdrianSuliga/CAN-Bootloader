@@ -30,13 +30,6 @@ static void rx_callback(const struct device *dev, struct can_frame *frame, void 
     k_sem_give(&can_ctrl_frame_sem);
 }
 
-static void tx_callback(const struct device *dev, int error, void *user_data)
-{
-    if (error) {
-        LOG_ERR("TX error %d", error);
-    }
-}
-
 int setup_can_device()
 {
     if (!device_is_ready(can_dev)) {
@@ -80,7 +73,7 @@ int send_can_frame(int id, uint8_t *data, size_t size)
     memcpy(frame.data, data, size);
 
     // Send CAN frame 
-    return can_send(can_dev, &frame, K_FOREVER, &tx_callback, NULL);
+    return can_send(can_dev, &frame, K_SECONDS(CAN_TX_MAILBOX_TIMEOUT), NULL, NULL);
 }
 
 int send_control_frame(int ctrl_frame_id, uint8_t command)
