@@ -50,6 +50,7 @@ static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size);
 static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id, int rx_buffer_current_size);
 static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt *evt);
 static int bootloader_start(int control_frame_id);
+static int bootloader_setup(int control_frame_id);
 static int bootloader_stop(int control_frame_id);
 static int bootloader_abort(int control_frame_id);
 
@@ -428,6 +429,16 @@ static int bootloader_start(int control_frame_id)
     return ret;
 }
 
+static int bootloader_setup(int control_frame_id)
+{
+    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_SETUP);
+    if (ret != 0) {
+        LOG_ERR("Failed to setup bootloader, error %d", ret);
+    }
+
+    return ret;
+}
+
 static int bootloader_stop(int control_frame_id)
 {
     int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_FINISH);
@@ -485,6 +496,12 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
 
     // Make current app jump to bootloader
     ret = bootloader_start(control_frame_id);
+    if (ret != 0) {
+        return ret;
+    }
+
+    // Request bootloader setup (erase Flash slot)
+    ret = bootloader_setup(control_frame_id);
     if (ret != 0) {
         return ret;
     }

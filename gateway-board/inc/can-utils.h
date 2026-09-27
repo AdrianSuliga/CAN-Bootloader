@@ -19,9 +19,10 @@
 // Command messages used in payload of
 // bootloader control messages
 #define BOOTLOADER_COMMAND_START  0
-#define BOOTLOADER_COMMAND_FINISH 1
-#define BOOTLOADER_COMMAND_ACK    2
-#define BOOTLOADER_COMMAND_ABORT  3
+#define BOOTLOADER_COMMAND_SETUP  1
+#define BOOTLOADER_COMMAND_FINISH 2
+#define BOOTLOADER_COMMAND_ACK    3
+#define BOOTLOADER_COMMAND_ABORT  4
 
 // Configure CAN filter and start CAN
 int setup_can_device();

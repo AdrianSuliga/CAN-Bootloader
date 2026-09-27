@@ -96,9 +96,9 @@ int send_wait_control_frame(int ctrl_frame_id, uint8_t command)
     // Wait for CAN CTRL frame back
     ret = k_sem_take(&can_ctrl_frame_sem, K_SECONDS(CAN_CTRL_MSG_TIMEOUT));
     if (ret != 0) {
-        LOG_ERR("Failed to receive CTRL message back, node in unknown state, error %d", ret);
+        LOG_ERR("Failed to receive ACK message from bootloader, node in unknown state, error %d", ret);
     } else {
-        LOG_INF("Received CTRL message, bootloader success confirmed");
+        LOG_INF("Received bootloader ACK message");
     }
 
     // Reset global state
