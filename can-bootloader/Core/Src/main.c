@@ -114,17 +114,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  // TODO implement 2-slot solution - get slot state
+  // TODO implement 2-slot solution - get slots state
   target_slot = USER_APP_SLOT_1;
-  
-  // Sleep for 1s to finish initialization
-  HAL_Delay(1000);
-
-  // Erase target Flash slot
-  res = Flash_Erase_TargetSlot(target_slot);
-  if (res != HAL_OK) {
-    Boot_Recover_OldUserApplication();
-  }
 
   // Initialize CAN receive buffer
   memset((void*)can_rx_buffer, 0xFF, CAN_RX_BUFFER_SIZE);
@@ -143,6 +134,24 @@ int main(void)
 
   while (1)
   {
+    if (setup_request) {
+      res = Flash_Erase_TargetSlot();
+      if (res != HAL_OK) {
+        Boot_Recover_OldUserApplication();
+      }
+
+      res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
+      if (res != HAL_OK) {
+        Boot_Recover_OldUserApplication();
+      }
+
+      // Indication for fallback procedures
+      slot_erased = 1;
+
+      // Setup handled successfully
+      setup_request = 0;
+    }
+
     if (app_ready) {
       // Confirm to gateway board that flashing was a success
       res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);

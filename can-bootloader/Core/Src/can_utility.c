@@ -1,5 +1,6 @@
 #include "can_utility.h"
 #include "flash_utility.h"
+#include "boot_utility.h"
 #include "stm32f7xx_hal.h"
 #include "string.h"
 #include "main.h"
@@ -11,6 +12,8 @@ static volatile uint32_t can_rx_buffer_offset = 0;
 static volatile uint32_t flash_offset         = 0;
 
 // Flags for bootloader control
+volatile int setup_request  = 0;
+volatile int slot_erased    = 0;
 volatile int abort_required = 0;
 volatile int app_ready      = 0;
 
@@ -63,7 +66,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
       if (can_rx_buffer_offset == CAN_RX_BUFFER_SIZE) {
         res = CAN_Write_RxBuffer(CAN_RX_BUFFER_SIZE);
         if (res != HAL_OK) {
-          abort_required;
+          abort_required = 1;
         }
       }
 
@@ -74,12 +77,16 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
       // Early return on malformed control frame
       if (rxHeader.DLC != 1) {
-        return;
+        break;
       }
 
       uint8_t command = data[0];
 
-      if (command == BOOTLOADER_COMMAND_FINISH) {
+      if (command == BOOTLOADER_COMMAND_SETUP) {
+
+        setup_request = 1;
+
+      } else if (command == BOOTLOADER_COMMAND_FINISH) {
 
         // If transmission ended with success,
         // flash what remains in receive buffer

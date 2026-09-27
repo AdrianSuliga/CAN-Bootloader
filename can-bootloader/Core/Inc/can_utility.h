@@ -23,9 +23,10 @@ extern "C" {
 
 // Command messages used in payload of
 // bootloader control messages
-#define BOOTLOADER_COMMAND_FINISH 1
-#define BOOTLOADER_COMMAND_ACK    2
-#define BOOTLOADER_COMMAND_ABORT  3
+#define BOOTLOADER_COMMAND_SETUP  1
+#define BOOTLOADER_COMMAND_FINISH 2
+#define BOOTLOADER_COMMAND_ACK    3
+#define BOOTLOADER_COMMAND_ABORT  4
 
 // Size of buffer for user application
 #define CAN_RX_BUFFER_SIZE 8192U
@@ -41,6 +42,14 @@ extern volatile int app_ready;
 // Declared in can_utility.h, defined in can_utility.c
 // Indicate that error occured and abort is needed
 extern volatile int abort_required;
+
+// Declared in can_utility.h, defined in can_utility.c
+// Indicate whether bootloader setup was requested or not.
+extern volatile int setup_request;
+
+// Declared in can_utility.h, defined in can_utility.c
+// Indicate whether old user application was erased or not.
+extern volatile int slot_erased;
 
 // Callback for receiving new CAN frame
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);

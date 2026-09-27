@@ -1,4 +1,5 @@
 #include "boot_utility.h"
+#include "can_utility.h"
 #include "flash_utility.h"
 
 // Initiate invalid state, recover actual state in main.c
@@ -54,5 +55,13 @@ void Boot_Start_NewUserApplication()
 void Boot_Recover_OldUserApplication()
 {
   // TODO implement 2-slot solution
-  while (1) {}
+  if (slot_erased) {
+    // Flash was erased, there is no fallback option.
+    // Bootloader hangs indefinitely. 
+    while (1) {
+      HAL_Delay(1000);
+    }
+  } else {
+    Boot_Start_NewUserApplication();
+  }
 }
