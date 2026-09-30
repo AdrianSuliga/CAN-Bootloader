@@ -365,7 +365,7 @@ static void mqtt_handler(struct mqtt_client *client, const struct mqtt_evt *evt)
 
 static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size)
 {
-    LOG_INF("Start sending app");
+    LOG_INF("Start sending CAN RX buffer");
 
     int ret, idx = 0;
     const int can_payload_size = 8;
@@ -380,7 +380,7 @@ static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size)
             return ret;
         }
         
-        LOG_INF("Sent (%d / %d) [ %02x %02x %02x %02x %02x %02x %02x %02x ]",
+        LOG_DBG("Sent (%d / %d) [ %02x %02x %02x %02x %02x %02x %02x %02x ]",
                 idx + 8, rx_buffer_current_size,
                 rx_buffer[idx],     rx_buffer[idx + 1],
                 rx_buffer[idx + 2], rx_buffer[idx + 3],
@@ -401,7 +401,7 @@ static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size)
         LOG_INF("Sent (%d / %d)", rx_buffer_current_size, rx_buffer_current_size);
     }
     
-    LOG_INF("Flashing of buffer successful");
+    LOG_INF("Sending of CAN RX buffer succeeded");
     
     return 0;
 }
