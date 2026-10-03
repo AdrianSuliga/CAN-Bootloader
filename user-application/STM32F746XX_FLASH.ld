@@ -237,7 +237,10 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
-
+  .flash_padding :
+  {
+      KEEP(*(.flash_padding))
+  } >FLASH
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

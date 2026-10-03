@@ -45,6 +45,10 @@
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
 static volatile uint8_t bootloader_flag = 0;
+
+// Artificially increase final Flash size, adjust size as needed
+const uint8_t test_data[243311]
+    __attribute__((used, section(".flash_padding"))) = { 0xAA };
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -172,7 +176,7 @@ int main(void)
 
     HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
     HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    HAL_Delay(100);
+    HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
