@@ -1,3 +1,11 @@
+config WATCHDOG_TIMEOUT
+    int "Set time after which watchdog resets the board, in ms"
+    range 60000 300000
+    default 120000
+    help
+        Watchdog is used as last line of defense and recovery if gateway board
+        hangs on unknown error. Range 1 min - 5 min.
+
 config MQTT_MESSAGE_RX_BUFFER_SIZE
     int "Set size of MQTT buffer RX size."
     range 128 65536

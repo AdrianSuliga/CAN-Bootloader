@@ -1,5 +1,6 @@
 #include "wifi-utils.h"
 #include "can-utils.h"
+#include "watchdog-utils.h"
 
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/net_mgmt.h>

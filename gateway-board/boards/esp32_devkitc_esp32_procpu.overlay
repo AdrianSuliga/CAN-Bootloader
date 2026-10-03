@@ -1,14 +1,6 @@
 / {
     aliases {
-        led0 = &embedded_led;
         can0 = &twai;
-    };
-
-    leds {
-        compatible = "gpio-leds";
-        embedded_led: embedded_led {
-            gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
-        };
     };
 };
 
