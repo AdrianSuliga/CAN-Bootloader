@@ -24,9 +24,10 @@ extern "C" {
 // Command messages used in payload of
 // bootloader control messages
 #define BOOTLOADER_COMMAND_SETUP  1
-#define BOOTLOADER_COMMAND_FINISH 2
-#define BOOTLOADER_COMMAND_ACK    3
-#define BOOTLOADER_COMMAND_ABORT  4
+#define BOOTLOADER_COMMAND_PING   2
+#define BOOTLOADER_COMMAND_FINISH 3
+#define BOOTLOADER_COMMAND_ACK    4
+#define BOOTLOADER_COMMAND_ABORT  5
 
 // Size of buffer for user application
 #define CAN_RX_BUFFER_SIZE 8192U

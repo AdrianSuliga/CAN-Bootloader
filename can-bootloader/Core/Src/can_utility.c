@@ -82,25 +82,28 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
       uint8_t command = data[0];
 
-      if (command == BOOTLOADER_COMMAND_SETUP) {
+      switch (command) {
+        case BOOTLOADER_COMMAND_SETUP:
+          setup_request = 1;
+          break;
 
-        setup_request = 1;
+        case BOOTLOADER_COMMAND_FINISH:
+          // If transmission ended with success,
+          // flash what remains in receive buffer
+          res = CAN_Write_RxBuffer(can_rx_buffer_offset);
+          if (res == HAL_OK) {
+            app_ready = 1;
+          } else {
+            abort_required = 1;
+          }
+          break;
 
-      } else if (command == BOOTLOADER_COMMAND_FINISH) {
-
-        // If transmission ended with success,
-        // flash what remains in receive buffer
-        res = CAN_Write_RxBuffer(can_rx_buffer_offset);
-        if (res == HAL_OK) {
-          app_ready = 1;
-        } else {
+        case BOOTLOADER_COMMAND_ABORT:
           abort_required = 1;
-        }
+          break;
 
-      } else if (command == BOOTLOADER_COMMAND_ABORT) {
-
-        abort_required = 1;
-
+        default:
+          break;
       }
 
       break;

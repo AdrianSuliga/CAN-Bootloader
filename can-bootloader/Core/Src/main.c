@@ -21,6 +21,7 @@
 #include "boot_utility.h"
 #include "flash_utility.h"
 #include "can_utility.h"
+#include "stm32f7xx_hal_tim.h"
 #include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
@@ -135,6 +136,7 @@ int main(void)
   while (1)
   {
     if (setup_request) {
+      // Gateway board requested bootloader setup
       res = Flash_Erase_TargetSlot();
       if (res != HAL_OK) {
         Boot_Recover_OldUserApplication();
@@ -153,6 +155,9 @@ int main(void)
     }
 
     if (app_ready) {
+      // Turn off timer
+      HAL_TIM_Base_Stop_IT(&htim6);
+
       // Confirm to gateway board that flashing was a success
       res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
       if (res != HAL_OK) {
@@ -163,6 +168,9 @@ int main(void)
     }
 
     if (abort_required) {
+      // Turn off timer
+      HAL_TIM_Base_Stop_IT(&htim6);
+
       Boot_Recover_OldUserApplication();
     }
 
