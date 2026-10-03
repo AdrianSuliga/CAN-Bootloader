@@ -52,6 +52,7 @@ static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id,
 static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt *evt);
 static int bootloader_start(int control_frame_id);
 static int bootloader_setup(int control_frame_id);
+static int bootloader_ping(int control_frame_id);
 static int bootloader_stop(int control_frame_id);
 static int bootloader_abort(int control_frame_id);
 
@@ -391,15 +392,22 @@ static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size)
         idx += can_payload_size;
     }
 
-    // If there are bytes left, send them as well
+    // If there are bytes left, send them as well with additional padding
     if (rx_buffer_current_size - idx > 0) {
-        ret = send_can_frame(firmware_frame_id, rx_buffer + idx, rx_buffer_current_size - idx);
+        uint8_t payload[can_payload_size];
+        memset(payload, 0xFF, can_payload_size);
+        memcpy(payload, rx_buffer + idx, rx_buffer_current_size - idx);
+        
+        ret = send_can_frame(firmware_frame_id, payload, can_payload_size);
         if (ret < 0) {
             LOG_ERR("Failed to send CAN frame, error %d", ret);
             return ret;
         }
 
-        LOG_INF("Sent (%d / %d)", rx_buffer_current_size, rx_buffer_current_size);
+        LOG_DBG("Sent (%d / %d) [ %02x %02x %02x %02x %02x %02x %02x %02x ]",
+                rx_buffer_current_size, rx_buffer_current_size,
+                payload[0], payload[1], payload[2], payload[3],
+                payload[4], payload[5], payload[6], payload[7]);
     }
     
     LOG_INF("Sending of CAN RX buffer succeeded");
@@ -440,6 +448,16 @@ static int bootloader_setup(int control_frame_id)
     return ret;
 }
 
+static int bootloader_ping(int control_frame_id)
+{
+    int ret = send_control_frame(control_frame_id, BOOTLOADER_COMMAND_PING);
+    if (ret != 0) {
+        LOG_ERR("Failed to ping bootloader, error %d", ret);
+    }
+
+    return ret;
+}
+
 static int bootloader_stop(int control_frame_id)
 {
     int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_FINISH);
@@ -464,6 +482,8 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
 {
     int ret;
     memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
+
+    uint32_t flashing_start = k_uptime_get_32();
 
     // How many bytes were read to buffer
     uint32_t buffer_read = 0;
@@ -504,7 +524,7 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
     // Request bootloader setup (erase Flash slot)
     ret = bootloader_setup(control_frame_id);
     if (ret != 0) {
-        return ret;
+        return bootloader_abort(control_frame_id);
     }
 
     // Process payload in a loop
@@ -525,6 +545,21 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
         LOG_INF("Read MQTT payload (%d / %d), RX buffer (%d / %d)",
                 payload_read, payload_len,
                 buffer_read, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
+
+        // MQTT read depends on connection speed and may be time consuming,
+        // ping bootloader to reset its internal timeout handling.
+        ret = bootloader_ping(control_frame_id);
+        if (ret < 0) {
+            return bootloader_abort(control_frame_id);
+        }
+
+        // Feed watchdog during time-consuming firmware flashing
+        ret = feed_watchdog();
+        if (ret < 0) {
+            LOG_ERR("Failed to feed watchdog");
+        } else {
+            LOG_DBG("Watchdog fed");
+        }
 
         // If buffer is full, send it to bootloader
         if (buffer_read == CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE) {
@@ -554,6 +589,8 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
         buffer_read = 0;
         memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
     
+        LOG_INF("Flashing took %u ms", k_uptime_get_32() - flashing_start);
+
         // Stop bootloader, jump to newly flashed app
         return bootloader_stop(control_frame_id);
     } else {

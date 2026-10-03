@@ -20,9 +20,10 @@
 // bootloader control messages
 #define BOOTLOADER_COMMAND_START  0
 #define BOOTLOADER_COMMAND_SETUP  1
-#define BOOTLOADER_COMMAND_FINISH 2
-#define BOOTLOADER_COMMAND_ACK    3
-#define BOOTLOADER_COMMAND_ABORT  4
+#define BOOTLOADER_COMMAND_PING   2
+#define BOOTLOADER_COMMAND_FINISH 3
+#define BOOTLOADER_COMMAND_ACK    4
+#define BOOTLOADER_COMMAND_ABORT  5
 
 // Configure CAN filter and start CAN
 int setup_can_device();

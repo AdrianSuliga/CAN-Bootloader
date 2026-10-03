@@ -9,7 +9,7 @@ config WATCHDOG_TIMEOUT
 config MQTT_MESSAGE_RX_BUFFER_SIZE
     int "Set size of MQTT buffer RX size."
     range 128 65536
-    default 2048
+    default 8192
     help
         This buffer is used to store fragments of new user application. The bigger, the more
         efficient flashing process will be.
