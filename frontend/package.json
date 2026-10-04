@@ -15,20 +15,59 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "wireless-uploader-boards",
+          "id": "wirelessUploaderViewContainer",
           "title": "Wireless Boards",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "wireless-uploader-boards": [
+      "wirelessUploaderViewContainer": [
         {
-          "id": "Boards",
-          "name": "Boards",
+          "id": "wirelessUploaderBoardView",
+          "name": "Wireless Boards",
           "icon": ""
         }
       ]
+    },
+    "commands": [
+      {
+        "command": "wirelessUploader.addSystem",
+        "title": "Add System",
+        "icon": "$(add)"
+      },
+      {
+        "command": "wirelessUploader.removeSystem",
+        "title": "Remove System",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "wirelessUploader.uploadToBoard",
+        "title": "Upload",
+        "icon": "$(cloud-upload)"
+      }
+
+    ],
+    "menus": {
+        "view/title": [
+          {
+            "command": "wirelessUploader.addSystem",
+            "when": "view == wirelessUploaderBoardView",
+            "group": "navigation"
+          }
+        ],
+        "view/item/context": [
+          {
+            "command": "wirelessUploader.removeSystem",
+            "when": "view == wirelessUploaderBoardView && viewItem == system",
+            "group": "inline@1"
+          },
+          {
+            "command": "wirelessUploader.uploadToBoard",
+            "when": "view == wirelessUploaderBoardView && viewItem == board",
+            "group": "inline@1"
+          }
+        ]
     }
   },
   "scripts": {
