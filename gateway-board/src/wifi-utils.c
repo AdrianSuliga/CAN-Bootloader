@@ -60,7 +60,14 @@ static int bootloader_abort(int control_frame_id);
 /* MODULE PUBLIC API */
 /* ***************** */
 
-/* WiFi setup, first point of interaction with this module */
+/* WiFi init, first point of interaction with this module */
+void init_wifi()
+{
+    net_mgmt_init_event_callback(&wifi_callback, wifi_handler, WIFI_EVENTS);
+    net_mgmt_add_event_callback(&wifi_callback);
+}
+
+/* WiFi setup, second point of interaction with this module */
 int setup_wifi()
 {
     struct net_if *iface = net_if_get_default();
@@ -73,17 +80,20 @@ int setup_wifi()
 
     fill_wifi_connect_params(&wifi_params);
 
-    net_mgmt_init_event_callback(&wifi_callback, wifi_handler, WIFI_EVENTS);
-    net_mgmt_add_event_callback(&wifi_callback);
-
-    net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &wifi_params, sizeof(wifi_params));
-
-    LOG_INF("Params setup, waiting for WiFi connection");
+    int ret = net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &wifi_params, sizeof(wifi_params));
+    if (ret == -EALREADY) {
+        LOG_INF("WiFi connecting already in progress");
+    } else if (ret < 0) {
+        LOG_ERR("net_mgmt returned error %d", ret);
+        return ret;
+    } else {
+        LOG_INF("Params setup, waiting for WiFi connection");
+    }
 
     return k_sem_take(&wifi_ready_flag, K_SECONDS(WIFI_CONNECT_TIMEOUT));
 }
 
-/* MQTT setup, second point of interaction with this module */
+/* MQTT setup, third point of interaction with this module */
 int setup_mqtt()
 {
     mqtt_client_init(&client);
@@ -199,6 +209,14 @@ static void wifi_handler(struct net_mgmt_event_callback *cb, uint64_t event, str
 
         case NET_EVENT_WIFI_DISCONNECT_RESULT:
             update_state_on_wifi_disconnect();
+
+            int ret = mqtt_disconnect(&client, NULL);
+            if (ret < 0) {
+                LOG_WRN("MQTT disconnect failed, error %d", ret);
+            } else {
+                LOG_INF("MQTT disconnected");
+            }
+
             LOG_INF("Disconnected, error: %d", *((int32_t *)(cb->info)));
             break;
 

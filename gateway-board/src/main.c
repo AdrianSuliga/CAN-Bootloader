@@ -19,6 +19,8 @@ int main()
         return 1;
     }
 
+    init_wifi();
+
     ret = setup_can_device();
     if (ret < 0) {
         LOG_ERR("Failed to setup can device, error %d", ret);

@@ -6,7 +6,7 @@
 
 #define WIFI_EVENTS (NET_EVENT_WIFI_CONNECT_RESULT | NET_EVENT_WIFI_DISCONNECT_RESULT)
 
-#define WIFI_SSID "NieRyszard"
+#define WIFI_SSID "Ryszard"
 #define WIFI_PSK "jestnatrello"
 
 #define WIFI_CONNECT_TIMEOUT 30
@@ -27,6 +27,9 @@ extern atomic_t wifi_ready;
 // Declared in wifi-utils.h,
 // defined in wifi-utils.c
 extern atomic_t mqtt_ready;
+
+// Initialize WiFi callbacks
+void init_wifi();
 
 // Establish WiFi connection, blocking
 int setup_wifi();
