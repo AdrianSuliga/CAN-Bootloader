@@ -9,7 +9,7 @@ PORT = 1883
 
 TOPIC = "system/gateway_board/subscribe/new_app"
 
-ELF_PATH = "/home/arima/zephyrproject/CAN-Bootloader/user-application/build/Debug/user-application.elf"
+ELF_PATH = "/home/arima/zephyrproject/CAN-Bootloader/user-application-zephyr/build/zephyr/zephyr.elf"
 BIN_PATH = "/tmp/user-application.bin"
 
 print("Converting ELF to BIN...")
