@@ -2,6 +2,7 @@ import os
 import time
 import struct
 import subprocess
+import sys
 import paho.mqtt.client as mqtt
 
 BROKER = "broker.hivemq.com"
@@ -9,8 +10,20 @@ PORT = 1883
 
 TOPIC = "system/gateway_board/subscribe/new_app"
 
-ELF_PATH = "/home/arima/zephyrproject/CAN-Bootloader/user-application-zephyr/build/zephyr/zephyr.elf"
-BIN_PATH = "/tmp/user-application.bin"
+def get_arg_paths():
+    if len(sys.argv) not in [2, 3]:
+        print('Error: Wrong number of arguments (expected 1 or 2).', file=sys.stderr)
+        print('Either provide the path to the zephyr workspace, '
+              'or paths to the elf and the bin.', file=sys.stderr)
+        exit(1)
+    elif len(sys.argv) == 2:
+        zephyr_workspace = sys.argv[1]
+        artifact_base = zephyr_workspace + '/build/zephyr/zephyr'
+        return artifact_base + '.elf', artifact_base + '.bin'
+    else:
+        return sys.argv[1], sys.argv[2]
+
+elf_path, bin_path = get_arg_paths()
 
 print("Converting ELF to BIN...")
 
@@ -19,13 +32,13 @@ subprocess.run(
         "arm-none-eabi-objcopy",
         "-O",
         "binary",
-        ELF_PATH,
-        BIN_PATH,
+        elf_path,
+        bin_path,
     ],
     check=True,
 )
 
-if not os.path.exists(BIN_PATH):
+if not os.path.exists(bin_path):
     raise FileNotFoundError("Failed to create binary")
 
 # Two 2-byte numbers
@@ -37,7 +50,7 @@ number2 = 0x401
 header = struct.pack("<HH", number1, number2)
 
 # Read binary firmware
-with open(BIN_PATH, "rb") as f:
+with open(bin_path, "rb") as f:
     firmware_data = f.read()
 
 print(f"Firmware size: {len(firmware_data)} bytes")
