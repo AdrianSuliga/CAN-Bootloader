@@ -115,8 +115,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  // TODO implement 2-slot solution - get slots state
-  target_slot = USER_APP_SLOT_1;
+
+#ifdef DISABLE_TWO_SLOT_SOLUTION
+  old_app_slot = USER_APP_SLOT_NONE;
+#else
+  old_app_slot = Read_Old_App_Slot();
+#endif
 
   // Initialize CAN receive buffer
   memset((void*)can_rx_buffer, 0xFF, CAN_RX_BUFFER_SIZE);
@@ -137,7 +141,7 @@ int main(void)
   {
     if (setup_request) {
       // Gateway board requested bootloader setup
-      res = Flash_Erase_TargetSlot();
+      res = Flash_Erase_NewSlot();
       if (res != HAL_OK) {
         Boot_Recover_OldUserApplication();
       }
@@ -146,9 +150,6 @@ int main(void)
       if (res != HAL_OK) {
         Boot_Recover_OldUserApplication();
       }
-
-      // Indication for fallback procedures
-      slot_erased = 1;
 
       // Setup handled successfully
       setup_request = 0;
@@ -164,7 +165,18 @@ int main(void)
         Boot_Recover_OldUserApplication();
       }
 
-      Boot_Start_NewUserApplication();
+#ifdef DISABLE_TWO_SLOT_SOLUTION
+      Boot_Start_Application(USER_APP_SLOT_1);
+#else
+      // This can fail, but we’ve already sent confirmation to the gateway
+      // board, so we don’t do anything about it
+      Write_New_App_Slot();
+
+      // Jump to the opposite slot, or to slot 1 by default
+      enum UserApplicationSlot boot_slot =
+          old_app_slot == USER_APP_SLOT_1 ? USER_APP_SLOT_2 : USER_APP_SLOT_1;
+      Boot_Start_Application(boot_slot);
+#endif
     }
 
     if (abort_required) {

@@ -3,18 +3,17 @@
 #include "flash_utility.h"
 
 // Initiate invalid state, recover actual state in main.c
-enum UserApplicationSlot target_slot = USER_APP_SLOT_INVALID;
-enum UserApplicationSlot recovery_slot = USER_APP_SLOT_INVALID;
+enum UserApplicationSlot old_app_slot = USER_APP_SLOT_NONE;
 
-void Boot_Start_NewUserApplication()
+void Boot_Start_Application(enum UserApplicationSlot slot)
 {
-  // Verify caller wants to jump to valid slot
-  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
-    return;
-  }
-
-  uint32_t target = target_slot == USER_APP_SLOT_1 ?
-                      USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
+  // Jump to the slot pointed by the argument, or slot 1 by default
+#ifdef DISABLE_TWO_SLOT_SOLUTION
+  uint32_t target = USER_APP_SLOT_1_ADDR;
+#else
+  uint32_t target = slot == USER_APP_SLOT_2 ?
+                      USER_APP_SLOT_2_ADDR : USER_APP_SLOT_1_ADDR;
+#endif
 
   // Disable interrupts for critical section
   __disable_irq();
@@ -54,14 +53,25 @@ void Boot_Start_NewUserApplication()
 
 void Boot_Recover_OldUserApplication()
 {
-  // TODO implement 2-slot solution
+#ifdef DISABLE_TWO_SLOT_SOLUTION
   if (slot_erased) {
-    // Flash was erased, there is no fallback option.
+    // There is no fallback option.
     // Bootloader hangs indefinitely. 
     while (1) {
       HAL_Delay(1000);
     }
   } else {
-    Boot_Start_NewUserApplication();
+    Boot_Start_NewUserApplication(old_app_slot);
   }
+#else
+  if (old_app_slot == USER_APP_SLOT_NONE) {
+    while (1) {
+      // There is no fallback option.
+      // Bootloader hangs indefinitely.
+      HAL_Delay(1000);
+    }
+  } else {
+    Boot_Start_Application(old_app_slot);
+  }
+#endif
 }

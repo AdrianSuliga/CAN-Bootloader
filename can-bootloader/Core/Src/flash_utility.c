@@ -3,12 +3,28 @@
 #include "can_utility.h"
 #include "string.h"
 
-HAL_StatusTypeDef Flash_Erase_TargetSlot()
+HAL_StatusTypeDef Flash_Erase_NewSlot()
 {
-  // Validate caller wants to erase valid slot
-  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
-    return HAL_ERROR;
+  // Prepare Flash erase structure
+  FLASH_EraseInitTypeDef erase;
+
+  erase.TypeErase = FLASH_TYPEERASE_SECTORS;
+  erase.VoltageRange = VOLTAGE_RANGE_3;
+
+  // we want to erase the slot of the new app
+#if DISABLE_TWO_SLOT_SOLUTION
+  erase.Sector = USER_APP_SLOT_1_START;
+  erase.NbSectors = USER_APP_SLOT_1_SECTOR_CNT;
+#else
+  if (old_app_slot == USER_APP_SLOT_1) {
+    erase.Sector = USER_APP_SLOT_2_START;
+    erase.NbSectors = USER_APP_SLOT_2_SECTOR_CNT;
+  } else {
+    // old_app_slot is either none or 2
+    erase.Sector = USER_APP_SLOT_1_START;
+    erase.NbSectors = USER_APP_SLOT_1_SECTOR_CNT;
   }
+#endif
 
   // Disable interrupts for Flash critical section
   __disable_irq();
@@ -19,19 +35,13 @@ HAL_StatusTypeDef Flash_Erase_TargetSlot()
   // Reset Flash flags
   FLASH_CLEAR_FLAGS();
 
-  // Prepare Flash erase structure
-  FLASH_EraseInitTypeDef erase;
   uint32_t error;
-
-  erase.TypeErase = FLASH_TYPEERASE_SECTORS;
-  erase.VoltageRange = VOLTAGE_RANGE_3;
-  erase.Sector = target_slot == USER_APP_SLOT_1 ?
-                 USER_APP_SLOT_1_START : USER_APP_SLOT_2_START;
-  erase.NbSectors = target_slot == USER_APP_SLOT_1 ?
-                    USER_APP_SLOT_1_SECTOR_CNT : USER_APP_SLOT_2_SECTOR_CNT;
 
   // Erase user application slots
   HAL_StatusTypeDef result = HAL_FLASHEx_Erase(&erase, &error);
+
+  // Indication for fallback procedures
+  slot_erased = 1;
 
   // Lock Flash again after completing operation
   HAL_FLASH_Lock();
@@ -44,14 +54,15 @@ HAL_StatusTypeDef Flash_Erase_TargetSlot()
 
 HAL_StatusTypeDef Flash_Write_CANRxBuffer(uint32_t offset)
 {
-  // Validate caller wants to use valid slot
-  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
-    return HAL_ERROR;
-  }
-
   HAL_StatusTypeDef result;
-  uint32_t base_address = target_slot == USER_APP_SLOT_1 ?
-                            USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
+
+#ifdef TWO_SLOT_SOLUTION
+  uint32_t base_address = USER_APP_SLOT_1_ADDR;
+#else
+  // We want to write to the slot of the new app
+  uint32_t base_address = old_app_slot == USER_APP_SLOT_1 ?
+                            USER_APP_SLOT_2_ADDR : USER_APP_SLOT_1_ADDR;
+#endif
   uint32_t write_address = base_address + offset;
 
   // Disable interrupts for Flash critical section
@@ -93,3 +104,36 @@ HAL_StatusTypeDef Flash_Write_CANRxBuffer(uint32_t offset)
 
   return HAL_OK;
 }
+
+#ifndef DISABLE_TWO_SLOT_SOLUTION
+
+enum UserApplicationSlot Read_Old_App_Slot() {
+  __IO uint32_t read_byte = *(__IO uint32_t *)OLD_APP_SLOT_INDICATOR_ADDR;
+  uint32_t indicator = (uint32_t)read_byte;
+  // clamp it to the possible values just in case
+  if (indicator == USER_APP_SLOT_1 || indicator == USER_APP_SLOT_2 ||
+      indicator == USER_APP_SLOT_NONE) {
+    return (enum UserApplicationSlot)indicator;
+  } else {
+    return USER_APP_SLOT_NONE;
+  }
+}
+
+HAL_StatusTypeDef Write_New_App_Slot() {
+  __disable_irq();
+  HAL_FLASH_Unlock();
+
+  FLASH_CLEAR_FLAGS();
+  FLASH_WaitForLastOperation(50000);
+
+  HAL_StatusTypeDef result = HAL_FLASH_Program(
+    FLASH_TYPEPROGRAM_WORD, OLD_APP_SLOT_INDICATOR_ADDR, (uint32_t)old_app_slot
+  );
+
+  HAL_FLASH_Lock();
+  __enable_irq();
+
+  return result;
+}
+
+#endif

@@ -10,11 +10,10 @@ extern "C" {
 
 // Declared in boot_utility.h, defined in boot_utility.c
 // System state, keeps track of user application slot cycle
-extern enum UserApplicationSlot target_slot;
-extern enum UserApplicationSlot recovery_slot;
+extern enum UserApplicationSlot old_app_slot;
 
 // Jump to user application stored at target slot
-void Boot_Start_NewUserApplication();
+void Boot_Start_Application(enum UserApplicationSlot slot);
 
 // Jump to user application stored at recovery slot
 void Boot_Recover_OldUserApplication();
