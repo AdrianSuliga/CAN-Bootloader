@@ -58,7 +58,7 @@ int main()
 
         gpio_pin_toggle_dt(&led0);
         gpio_pin_toggle_dt(&led2);
-        k_sleep(K_MSEC(500));
+        k_sleep(K_MSEC(100));
     }
 
     return 0;

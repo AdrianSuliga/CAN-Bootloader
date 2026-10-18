@@ -7,7 +7,7 @@
 
 &flash0 {
 	partitions {
-        /delete-node/ partition@20000;
+        	/delete-node/ partition@20000;
 		/delete-node/ partition@60000;
 		/delete-node/ partition@80000;
 		/delete-node/ partition@a0000;
