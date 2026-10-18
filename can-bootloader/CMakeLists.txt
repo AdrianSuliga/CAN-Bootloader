@@ -44,7 +44,9 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user sources here
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/flash_utility.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/can_utility.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/boot_utility.c
 )
 
 # Add include paths

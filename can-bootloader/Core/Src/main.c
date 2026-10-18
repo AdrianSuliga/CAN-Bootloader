@@ -18,15 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "boot_utility.h"
-#include "flash_utility.h"
-#include "can_utility.h"
-#include "stm32f7xx_hal_tim.h"
-#include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "boot_utility.h"
+#include "can_utility.h"
+#include "flash_utility.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
