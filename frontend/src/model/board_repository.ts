@@ -11,13 +11,21 @@ export class BoardRepository {
                 children: [
                     {
                         type: "board",
-                        name: "stm32 #1"
+                        name: "stm32 #1",
+                        ctrId: 0,
+                        firmwareId: 0
                     },
                     {
                         type: "board",
-                        name: "stm32 #2"
+                        name: "stm32 #2",
+                        ctrId: 0,
+                        firmwareId: 0
                     },
-                ]
+                ],
+                mqttBroker: "test.example.none",
+                mqttPort: 1234,
+                mqttUploadTopic: "none",
+                mqttDebugTopic: "none"
             },
             {
                 type: "system",
@@ -25,17 +33,27 @@ export class BoardRepository {
                 children: [
                     {
                         type: "board",
-                        name: "steering wheel"
+                        name: "steering wheel",
+                        ctrId: 0,
+                        firmwareId: 0
                     },
                     {
                         type: "board",
-                        name: "engine"
+                        name: "engine",
+                        ctrId: 0,
+                        firmwareId: 0
                     },
                     {
                         type: "board",
-                        name: "battery"
+                        name: "battery",
+                        ctrId: 0,
+                        firmwareId: 0
                     },
-                ]
+                ],
+                mqttBroker: "test.example.none",
+                mqttPort: 1234,
+                mqttUploadTopic: "none",
+                mqttDebugTopic: "none"
             }
         ];
     }

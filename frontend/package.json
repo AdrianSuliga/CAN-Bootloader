@@ -45,8 +45,12 @@
         "command": "wirelessUploader.uploadToBoard",
         "title": "Upload",
         "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "wirelessUploader.debug",
+        "title": "Debug Command",
+        "icon": "$(cloud-upload)"
       }
-
     ],
     "menus": {
         "view/title": [
