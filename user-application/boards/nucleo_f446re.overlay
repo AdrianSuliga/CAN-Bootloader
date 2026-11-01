@@ -1,0 +1,55 @@
+/ {
+    chosen {
+        zephyr,code-partition = &app_partition;
+        zephyr,canbus = &can1;
+    };
+};
+
+// Placeholders
+#define ENABLE_BOOTLOADER
+#define DISABLE_TWO_SLOT_SOLUTION
+
+#ifdef ENABLE_BOOTLOADER
+&flash0 {
+    partitions {
+        // Remove in-tree MCUBoot
+        /delete-node/ partition@10000;
+        /delete-node/ partition@20000;
+        /delete-node/ partition@40000;
+        /delete-node/ partition@60000;
+
+        // Custom Flash layout
+        boot_partition: partition@0 {
+            label = "bootloader";
+            reg = <0x00000000 0x00004000>; // sector 0 (16 KB)
+        };
+
+        #ifdef DISABLE_TWO_SLOT_SOLUTION
+
+        app_partition: partition@4000 {
+            label = "application";
+            reg = <0x00004000 0x0007C000>; // sectors 1 - 7 (496 KB)
+        };
+
+        #else
+
+        app_partition: partition@4000 {
+            label = "application";
+            reg = <0x00004000 0x0003C000>; // sectors 1 - 5 (240 KB)
+        };
+
+        swap_partition: partition@40000 {
+            label = "swap";
+            reg = <0x00040000 0x00040000>; // sectors 6 - 7 (256 KB)
+        };
+
+        #endif
+    };
+};
+#endif
+
+&can1 {
+	status = "okay";
+    pinctrl-0 = < &can1_rx_pb8 &can1_tx_pb9 >;
+    pinctrl-names = "default";
+};

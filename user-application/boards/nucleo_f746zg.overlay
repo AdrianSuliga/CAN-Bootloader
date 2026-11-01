@@ -5,24 +5,48 @@
     };
 };
 
+// Placeholders
+#define ENABLE_BOOTLOADER
+#define DISABLE_TWO_SLOT_SOLUTION
+
+#ifdef ENABLE_BOOTLOADER
 &flash0 {
 	partitions {
+		// Remove in-tree MCUBoot
         	/delete-node/ partition@20000;
 		/delete-node/ partition@60000;
 		/delete-node/ partition@80000;
 		/delete-node/ partition@a0000;
 
+		// Custom Flash layout
 		boot_partition: partition@0 {
 			label = "bootloader";
-			reg = <0x00000000 0x00008000>;
+			reg = <0x00000000 0x00008000>; // sector 0 (32 KB)
 		};
+
+		#ifdef DISABLE_TWO_SLOT_SOLUTION
 
 		app_partition: partition@8000 {
 			label = "application";
-			reg = <0x00008000 0x000F8000>;
+			reg = <0x00008000 0x000F8000>; // sectors 1 - 7 (992 KB)
 		};
+
+		#else
+
+		app_partition: partition@8000 {
+			label = "application";
+			reg = <0x00008000 0x00078000>; // sectors 1 - 5 (480 KB)
+		};
+
+		swap_partition: partition@80000 {
+			label = "swap";
+			reg = <0x00080000 0x00080000>;
+		};
+
+		#endif
 	};
 };
+#endif
 
 &can1 {
     status = "okay";
