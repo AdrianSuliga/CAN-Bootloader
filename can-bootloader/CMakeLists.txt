@@ -47,6 +47,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/flash_utility.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/can_utility.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/boot_utility.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/crc_utility.c
 )
 
 # Add include paths

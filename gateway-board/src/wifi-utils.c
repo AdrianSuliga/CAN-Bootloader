@@ -9,6 +9,7 @@
 #include <zephyr/net/mqtt.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/net_ip.h>
+#include <zephyr/sys/crc.h>
 
 #include <zephyr/logging/log.h>
 
@@ -53,7 +54,7 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
 static int bootloader_start(int control_frame_id);
 static int bootloader_setup(int control_frame_id);
 static int bootloader_ping(int control_frame_id);
-static int bootloader_stop(int control_frame_id);
+static int bootloader_stop(int control_frame_id, uint32_t crc);
 static int bootloader_abort(int control_frame_id);
 
 /* ***************** */
@@ -448,7 +449,7 @@ static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id,
 
 static int bootloader_start(int control_frame_id)
 {
-    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_START);
+    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_START, NULL);
     if (ret != 0) {
         LOG_ERR("Failed to start bootloader, error %d", ret);
     }
@@ -458,7 +459,7 @@ static int bootloader_start(int control_frame_id)
 
 static int bootloader_setup(int control_frame_id)
 {
-    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_SETUP);
+    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_SETUP, NULL);
     if (ret != 0) {
         LOG_ERR("Failed to setup bootloader, error %d", ret);
     }
@@ -468,7 +469,7 @@ static int bootloader_setup(int control_frame_id)
 
 static int bootloader_ping(int control_frame_id)
 {
-    int ret = send_control_frame(control_frame_id, BOOTLOADER_COMMAND_PING);
+    int ret = send_control_frame(control_frame_id, BOOTLOADER_COMMAND_PING, NULL);
     if (ret != 0) {
         LOG_ERR("Failed to ping bootloader, error %d", ret);
     }
@@ -476,9 +477,9 @@ static int bootloader_ping(int control_frame_id)
     return ret;
 }
 
-static int bootloader_stop(int control_frame_id)
+static int bootloader_stop(int control_frame_id, uint32_t crc)
 {
-    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_FINISH);
+    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_FINISH, &crc);
     if (ret != 0) {
         LOG_ERR("Failed to stop bootloader, node left in unknown state, error %d", ret);
     }
@@ -488,7 +489,7 @@ static int bootloader_stop(int control_frame_id)
 
 static int bootloader_abort(int control_frame_id)
 {
-    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_ABORT);
+    int ret = send_wait_control_frame(control_frame_id, BOOTLOADER_COMMAND_ABORT, NULL);
     if (ret != 0) {
         LOG_ERR("Failed to abort bootloader, node left in unknown state, error %d", ret);
     }
@@ -509,6 +510,8 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
     uint32_t payload_read = 0;
     // Total payload length
     uint32_t payload_len = evt->param.publish.message.payload.len;
+    // CRC16 of the payload
+    uint32_t crc = 0;
 
     LOG_INF("Incoming payload size: %d", payload_len);
 
@@ -587,6 +590,9 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
                 return ret;
             }
 
+            // Feed the chunk in buffer to CRC16
+            crc = crc32_ieee_update(crc, rx_buffer, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
+
             // Reset buffer state
             buffer_read = 0;
             memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
@@ -603,14 +609,17 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
             return ret;
         }
 
+        crc = crc32_ieee_update(crc, rx_buffer, buffer_read);
+        LOG_INF("Calculated payload CRC32: 0x%08X", crc);
+
         // Reset buffer state
         buffer_read = 0;
         memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
-    
+
         LOG_INF("Flashing took %u ms", k_uptime_get_32() - flashing_start);
 
         // Stop bootloader, jump to newly flashed app
-        return bootloader_stop(control_frame_id);
+        return bootloader_stop(control_frame_id, crc);
     } else {
         LOG_ERR("Failed to read full payload, trying to abort");
         return bootloader_abort(control_frame_id);

@@ -3,6 +3,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/can.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/byteorder.h>
 
 LOG_MODULE_REGISTER(CanUtils, LOG_LEVEL_DBG);
 
@@ -76,18 +77,25 @@ int send_can_frame(int id, uint8_t *data, size_t size)
     return can_send(can_dev, &frame, K_SECONDS(CAN_TX_MAILBOX_TIMEOUT), NULL, NULL);
 }
 
-int send_control_frame(int ctrl_frame_id, uint8_t command)
+int send_control_frame(int ctrl_frame_id, uint8_t command, uint32_t *crc)
 {
-    return send_can_frame(ctrl_frame_id, &command, sizeof(uint8_t));
+    if (crc == NULL) {
+        return send_can_frame(ctrl_frame_id, &command, sizeof(uint8_t));
+    } else {
+        uint32_t crc_le = sys_cpu_to_le32(*crc);
+        uint8_t crc_bytes[4] = sys_uint32_to_array(crc_le);
+        uint8_t payload[5] = {command, crc_bytes[0], crc_bytes[1], crc_bytes[2], crc_bytes[3]};
+        return send_can_frame(ctrl_frame_id, payload, sizeof(payload));
+    }
 }
 
-int send_wait_control_frame(int ctrl_frame_id, uint8_t command)
+int send_wait_control_frame(int ctrl_frame_id, uint8_t command, uint32_t *crc)
 {
     // Set global CAN CTRL frame ID
     current_can_control_frame = ctrl_frame_id;
 
     // Send CAN CTRL frame
-    int ret = send_control_frame(ctrl_frame_id, command);
+    int ret = send_control_frame(ctrl_frame_id, command, crc);
     if (ret != 0) {
         LOG_ERR("Failed to send CTRL frame to node, error %d", ret);
         return ret;

@@ -1,4 +1,5 @@
 #include "can_utility.h"
+#include "crc_utility.h"
 #include "flash_utility.h"
 #include "boot_utility.h"
 #include "stm32f7xx_hal.h"
@@ -11,11 +12,15 @@ volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE] = { 0x0 };
 static volatile uint32_t can_rx_buffer_offset = 0;
 static volatile uint32_t flash_offset         = 0;
 
+// Calculated checksum for validation
+volatile uint32_t crc32_calculated = CRC_INITIAL_VALUE;
+
 // Flags for bootloader control
-volatile int setup_request  = 0;
-volatile int slot_erased    = 0;
-volatile int abort_required = 0;
-volatile int app_ready      = 0;
+volatile int setup_request   = 0;
+volatile int slot_erased     = 0;
+volatile int abort_required  = 0;
+volatile int app_ready       = 0;
+volatile int checksums_match = 0;
 
 static HAL_StatusTypeDef CAN_Write_RxBuffer(uint32_t buffer_size)
 {
@@ -58,6 +63,9 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     // New app fragment received
     case CAN_FRAME_FIRMWARE_FRAGMENT_ID:
 
+      // Update the checksum with newly received data
+      crc32_calculated = CRC_Checksum_Update(crc32_calculated, data, rxHeader.DLC);
+
       // Write new fragment to CAN receive buffer
       memcpy((void*)(can_rx_buffer + can_rx_buffer_offset), data, rxHeader.DLC);
       can_rx_buffer_offset += rxHeader.DLC;
@@ -76,11 +84,16 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     case CAN_FRAME_BOOTLOADER_CTRL_ID:
 
       // Early return on malformed control frame
-      if (rxHeader.DLC != 1) {
+      if (rxHeader.DLC < 1) {
         break;
       }
 
       uint8_t command = data[0];
+
+      if ((command != BOOTLOADER_COMMAND_FINISH && rxHeader.DLC != 1)
+          || (command == BOOTLOADER_COMMAND_FINISH && rxHeader.DLC != 5)) {
+          break;
+      }
 
       switch (command) {
         case BOOTLOADER_COMMAND_SETUP:
@@ -92,6 +105,16 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
           // flash what remains in receive buffer
           res = CAN_Write_RxBuffer(can_rx_buffer_offset);
           if (res == HAL_OK) {
+            crc32_calculated = CRC_Checksum_Finalize(crc32_calculated);
+
+            // Aligning the bytes, received in little endian
+            uint32_t crc32_received =
+                ((uint32_t)data[1]      ) |
+                ((uint32_t)data[2] <<  8) |
+                ((uint32_t)data[3] << 16) |
+                ((uint32_t)data[4] << 24);
+
+            checksums_match = (crc32_calculated == crc32_received);
             app_ready = 1;
           } else {
             abort_required = 1;

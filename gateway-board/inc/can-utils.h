@@ -32,9 +32,9 @@ int setup_can_device();
 int send_can_frame(int id, uint8_t *data, size_t size);
 
 // Send control frame to node
-int send_control_frame(int ctrl_frame_id, uint8_t command);
+int send_control_frame(int ctrl_frame_id, uint8_t command, uint32_t *crc);
 
 // Send control frame to node and wait for control frame back
-int send_wait_control_frame(int ctrl_frame_id, uint8_t command);
+int send_wait_control_frame(int ctrl_frame_id, uint8_t command, uint32_t *crc);
 
 #endif /* __CAN_UTILS_H */
