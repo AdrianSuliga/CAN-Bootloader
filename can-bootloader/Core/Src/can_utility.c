@@ -12,9 +12,6 @@ volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE] = { 0x0 };
 static volatile uint32_t can_rx_buffer_offset = 0;
 static volatile uint32_t flash_offset         = 0;
 
-// Calculated checksum for validation
-volatile uint32_t crc32_calculated = CRC_INITIAL_VALUE;
-
 // Flags for bootloader control
 volatile int setup_request   = 0;
 volatile int slot_erased     = 0;
@@ -24,6 +21,9 @@ volatile int checksums_match = 0;
 
 static HAL_StatusTypeDef CAN_Write_RxBuffer(uint32_t buffer_size)
 {
+  // Update the CRC32 checksum with data in the buffer before flushing
+  CRC_Checksum_Update((const uint8_t *)can_rx_buffer, buffer_size);
+
   HAL_StatusTypeDef res = Flash_Write_CANRxBuffer(flash_offset);
   if (res != HAL_OK) {
     return res;
@@ -63,9 +63,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     // New app fragment received
     case CAN_FRAME_FIRMWARE_FRAGMENT_ID:
 
-      // Update the checksum with newly received data
-      crc32_calculated = CRC_Checksum_Update(crc32_calculated, data, rxHeader.DLC);
-
       // Write new fragment to CAN receive buffer
       memcpy((void*)(can_rx_buffer + can_rx_buffer_offset), data, rxHeader.DLC);
       can_rx_buffer_offset += rxHeader.DLC;
@@ -97,6 +94,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
       switch (command) {
         case BOOTLOADER_COMMAND_SETUP:
+          CRC_Checksum_Initialize();
           setup_request = 1;
           break;
 
@@ -105,7 +103,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
           // flash what remains in receive buffer
           res = CAN_Write_RxBuffer(can_rx_buffer_offset);
           if (res == HAL_OK) {
-            crc32_calculated = CRC_Checksum_Finalize(crc32_calculated);
+            uint32_t crc32_calculated = CRC_Checksum_Finalize();
 
             // Aligning the bytes, received in little endian
             uint32_t crc32_received =
