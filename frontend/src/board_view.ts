@@ -6,6 +6,8 @@ const boardRepository: BoardRepository = new BoardRepository;
 
 export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
 
+    private parentMap = new Map<BoardNode, BoardNode>();
+
     getTreeItem(element: BoardNode): BoardTreeItem {
         return new BoardTreeItem(element);
     }
@@ -17,10 +19,17 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
 
         switch (element.type) {
             case "system":
+                for (let child of element.children) {
+                    this.parentMap.set(child, element);
+                }
                 return element.children;
             case "board":
                 return [];
         }
+    }
+
+    getParent(element: BoardNode): vscode.ProviderResult<BoardNode> {
+        return this.parentMap.get(element);
     }
 
 }

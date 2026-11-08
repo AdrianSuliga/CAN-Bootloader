@@ -7,18 +7,18 @@ export class BoardRepository {
         return [
             {
                 type: "system",
-                name: "test system 1",
+                name: "Boaty Mc'floaty",
                 children: [
                     {
                         type: "board",
                         name: "stm32 #1",
-                        ctrId: 0,
+                        controlId: 0,
                         firmwareId: 0
                     },
                     {
                         type: "board",
                         name: "stm32 #2",
-                        ctrId: 0,
+                        controlId: 0,
                         firmwareId: 0
                     },
                 ],
@@ -29,31 +29,19 @@ export class BoardRepository {
             },
             {
                 type: "system",
-                name: "test system 2",
+                name: "Test System 1",
                 children: [
                     {
                         type: "board",
-                        name: "steering wheel",
-                        ctrId: 0,
-                        firmwareId: 0
-                    },
-                    {
-                        type: "board",
-                        name: "engine",
-                        ctrId: 0,
-                        firmwareId: 0
-                    },
-                    {
-                        type: "board",
-                        name: "battery",
-                        ctrId: 0,
-                        firmwareId: 0
-                    },
+                        name: "Nucleo",
+                        controlId: 1024,
+                        firmwareId: 1025
+                    }
                 ],
-                mqttBroker: "test.example.none",
-                mqttPort: 1234,
-                mqttUploadTopic: "none",
-                mqttDebugTopic: "none"
+                mqttBroker: "broker.hivemq.com",
+                mqttPort: 1883,
+                mqttUploadTopic: "system/gateway_board/subscribe/new_app",
+                mqttDebugTopic: "system/gateway_board/publish/state"
             }
         ];
     }

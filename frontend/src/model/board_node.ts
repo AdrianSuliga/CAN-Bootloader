@@ -18,6 +18,18 @@ export interface Board {
     type: "board";
     name: string;
 
-    ctrId: number;
+    controlId: number;
     firmwareId: number;
+}
+
+export function isSystem(
+    node: BoardNode | undefined | null
+): node is System {
+    return true;
+}
+
+export function isBoard(
+    node: BoardNode | undefined | null
+): node is Board {
+    return true;
 }

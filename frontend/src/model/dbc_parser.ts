@@ -14,12 +14,12 @@ export async function parseDBC(filePath: string, ctr: string, firmware: string):
             if (line_processed[2].includes(ctr)) {
                 let name = line_processed[2].split(ctr)[0];
                 if (name in boards) {
-                    boards[name].ctrId = Number(line_processed[1]);
+                    boards[name].controlId = Number(line_processed[1]);
                 } else {
                     boards[name] = {
                         type: "board",
                         name: name,
-                        ctrId: Number(line_processed[1]),
+                        controlId: Number(line_processed[1]),
                         firmwareId: -1
                     };
                 }
@@ -31,7 +31,7 @@ export async function parseDBC(filePath: string, ctr: string, firmware: string):
                     boards[name] = {
                         type: "board",
                         name: name,
-                        ctrId: -1,
+                        controlId: -1,
                         firmwareId: Number(line_processed[1])
                     };
                 }
