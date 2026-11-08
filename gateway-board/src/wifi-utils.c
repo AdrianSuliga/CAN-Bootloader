@@ -186,11 +186,11 @@ static void fill_wifi_connect_params(struct wifi_connect_req_params *params)
 {
     memset(params, 0, sizeof(struct wifi_connect_req_params));
 
-    params->ssid = WIFI_SSID;
-    params->ssid_length = strlen(WIFI_SSID);
+    params->ssid = CONFIG_WIFI_SSID;
+    params->ssid_length = strlen(CONFIG_WIFI_SSID);
 
-    params->psk = WIFI_PSK;
-    params->psk_length = strlen(WIFI_PSK);
+    params->psk = CONFIG_WIFI_PSK;
+    params->psk_length = strlen(CONFIG_WIFI_PSK);
 
     params->band = 0;
     params->security = WIFI_SECURITY_TYPE_PSK;
@@ -203,7 +203,7 @@ static void wifi_handler(struct net_mgmt_event_callback *cb, uint64_t event, str
             struct wifi_status *received_status = (struct wifi_status *)(cb->info);
             if (received_status->conn_status == WIFI_STATUS_CONN_SUCCESS) {
                 update_state_on_wifi_connect();
-                LOG_INF("Connected to %s", WIFI_SSID);
+                LOG_INF("Connected to %s", CONFIG_WIFI_SSID);
             } else {
                 LOG_INF("Not connected, error: %d", received_status->conn_status);
             }
@@ -248,8 +248,8 @@ static int subscribe()
 {
     struct mqtt_topic sub_topic = {
         .topic = {
-            .utf8 = MQTT_SUBSCRIBE_TOPIC,
-            .size = strlen(MQTT_SUBSCRIBE_TOPIC)
+            .utf8 = CONFIG_MQTT_SUBSCRIBE_TOPIC,
+            .size = strlen(CONFIG_MQTT_SUBSCRIBE_TOPIC)
         },
         .qos = MQTT_QOS_0_AT_MOST_ONCE
     };
@@ -260,7 +260,7 @@ static int subscribe()
         .message_id = 6767
     };
 
-    LOG_INF("Subscribing to topic %s", MQTT_SUBSCRIBE_TOPIC);
+    LOG_INF("Subscribing to topic %s", CONFIG_MQTT_SUBSCRIBE_TOPIC);
     return mqtt_subscribe(&client, &sub_list);
 }
 
@@ -268,8 +268,8 @@ static void fill_mqtt_client_params()
 {
     client.broker = &broker;
     client.evt_cb = mqtt_handler;
-    client.client_id.utf8 = MQTT_CLIENT;
-    client.client_id.size = strlen(MQTT_CLIENT);
+    client.client_id.utf8 = CONFIG_MQTT_CLIENT_NAME;
+    client.client_id.size = strlen(CONFIG_MQTT_CLIENT_NAME);
     client.password = NULL;
     client.user_name = NULL;
     client.protocol_version = MQTT_VERSION_3_1_1;
@@ -292,9 +292,9 @@ static int server_resolve()
         .ai_socktype = SOCK_STREAM
     };
 
-    err = zsock_getaddrinfo(MQTT_BROKER, NULL, &hints, &result);
+    err = zsock_getaddrinfo(CONFIG_MQTT_BROKER_ADDRESS, NULL, &hints, &result);
     if (err) {
-        LOG_ERR("Failed to get address info of %s", MQTT_BROKER);
+        LOG_ERR("Failed to get address info of %s", CONFIG_MQTT_BROKER_ADDRESS);
         return err;
     }
 
@@ -304,13 +304,13 @@ static int server_resolve()
     }
 
     broker.sin_family = AF_INET;
-    broker.sin_port = htons(MQTT_BROKER_PORT);
+    broker.sin_port = htons(CONFIG_MQTT_BROKER_PORT);
     broker.sin_addr.s_addr = ((struct sockaddr_in *)result->ai_addr)->sin_addr.s_addr;
 
     char addr_str[NET_IPV4_ADDR_LEN];
     net_addr_ntop(AF_INET, &broker.sin_addr, addr_str, sizeof(addr_str));
 
-    LOG_INF("%s resolved as %s", MQTT_BROKER, addr_str);
+    LOG_INF("%s resolved as %s", CONFIG_MQTT_BROKER_ADDRESS, addr_str);
 
     zsock_freeaddrinfo(result);
 

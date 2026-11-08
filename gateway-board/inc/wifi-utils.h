@@ -6,17 +6,8 @@
 
 #define WIFI_EVENTS (NET_EVENT_WIFI_CONNECT_RESULT | NET_EVENT_WIFI_DISCONNECT_RESULT)
 
-#define WIFI_SSID "Ryszard"
-#define WIFI_PSK "jestnatrello"
-
 #define WIFI_CONNECT_TIMEOUT 30
 #define MQTT_CONNECT_TIMEOUT 30
-
-#define MQTT_CLIENT "zephyr_bootloader_mqtt_client"
-#define MQTT_BROKER "broker.hivemq.com"
-#define MQTT_BROKER_PORT 1883
-#define MQTT_PUBLISH_TOPIC "system/gateway_board/publish/state"
-#define MQTT_SUBSCRIBE_TOPIC "system/gateway_board/subscribe/new_app"
 
 // Device connected to WiFi
 // Declared in wifi-utils.h,

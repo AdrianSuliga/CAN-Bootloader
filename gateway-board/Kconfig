@@ -6,6 +6,32 @@ config WATCHDOG_TIMEOUT
         Watchdog is used as last line of defense and recovery if gateway board
         hangs on unknown error. Range 1 min - 5 min.
 
+config WIFI_SSID
+    string "Name of the target WiFi network"
+    help
+        Set the name of the WiFi network that gateway board is supposed to connect to.
+
+config WIFI_PSK
+    string "Password of the target WiFi network"
+    help
+        Set the password that gateway board will use to authenticate itself to the
+        target WiFi network.
+
+config MQTT_CLIENT_NAME
+    string "Name that gateway board will use to introduce itself to MQTT broker"
+
+config MQTT_BROKER_ADDRESS
+    string "URL adress of MQTT broker used by gateway board"
+    
+config MQTT_BROKER_PORT
+    int "Port of MQTT broker used by gateway board"
+
+config MQTT_PUBLISH_TOPIC
+    string "MQTT topic that gateway board will publish to"
+
+config MQTT_SUBSCRIBE_TOPIC
+    string "MQTT topic that gateway board will subscribe to"
+
 config MQTT_MESSAGE_RX_BUFFER_SIZE
     int "Set size of MQTT buffer RX size."
     range 128 65536
