@@ -12,7 +12,7 @@ config MQTT_MESSAGE_RX_BUFFER_SIZE
     default 8192
     help
         This buffer is used to store fragments of new user application. The bigger, the more
-        efficient flashing process will be.
+        efficient flashing process will be. Has to be a multiple of 8.
 
 config MQTT_MESSAGE_TX_BUFFER_SIZE
     int "Set size of MQTT buffer RX size."

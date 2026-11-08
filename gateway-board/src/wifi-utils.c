@@ -48,6 +48,7 @@ static void fill_mqtt_client_params();
 static void mqtt_handler(struct mqtt_client *client, const struct mqtt_evt *evt);
 
 /* CAN internal functions */
+static int pad_rx_buffer(uint32_t bytes_in_buffer);
 static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size);
 static int send_rx_buffer_protected(int control_frame_id, int firmware_frame_id, int rx_buffer_current_size);
 static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt *evt);
@@ -384,18 +385,33 @@ static void mqtt_handler(struct mqtt_client *client, const struct mqtt_evt *evt)
 /* Internal CAN functions */
 /* ---------------------- */
 
+static int pad_rx_buffer(uint32_t bytes_in_buffer)
+{
+    uint32_t remainder = bytes_in_buffer % CAN_FRAME_MAX_PAYLOAD;
+    
+    // No padding required
+    if (remainder == 0) {
+        return bytes_in_buffer;
+    }
+
+    uint32_t required_padding = CAN_FRAME_MAX_PAYLOAD - remainder;
+
+    memset(rx_buffer + bytes_in_buffer, 0xFF, required_padding);
+
+    return bytes_in_buffer + required_padding;
+}
+
 static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size)
 {
     LOG_INF("Start sending CAN RX buffer");
 
     int ret, idx = 0;
-    const int can_payload_size = 8;
 
     // Go through user_application_buffer and send
     // 8-byte fragments via CAN
-    while (idx + can_payload_size <= rx_buffer_current_size) {
+    while (idx + CAN_FRAME_MAX_PAYLOAD <= rx_buffer_current_size) {
 
-        ret = send_can_frame(firmware_frame_id, rx_buffer + idx, can_payload_size);
+        ret = send_can_frame(firmware_frame_id, rx_buffer + idx, CAN_FRAME_MAX_PAYLOAD);
         if (ret < 0) {
             LOG_ERR("Failed to send CAN frame, error %d", ret);
             return ret;
@@ -408,25 +424,14 @@ static int send_rx_buffer(int firmware_frame_id, int rx_buffer_current_size)
                 rx_buffer[idx + 4], rx_buffer[idx + 5],
                 rx_buffer[idx + 6], rx_buffer[idx + 7]);
 
-        idx += can_payload_size;
+        idx += CAN_FRAME_MAX_PAYLOAD;
     }
 
-    // If there are bytes left, send them as well with additional padding
+    // If there are bytes left, indicate error. This should not happen
+    // due to padding buffer to a multiple of 8.
     if (rx_buffer_current_size - idx > 0) {
-        uint8_t payload[can_payload_size];
-        memset(payload, 0xFF, can_payload_size);
-        memcpy(payload, rx_buffer + idx, rx_buffer_current_size - idx);
-        
-        ret = send_can_frame(firmware_frame_id, payload, can_payload_size);
-        if (ret < 0) {
-            LOG_ERR("Failed to send CAN frame, error %d", ret);
-            return ret;
-        }
-
-        LOG_DBG("Sent (%d / %d) [ %02x %02x %02x %02x %02x %02x %02x %02x ]",
-                rx_buffer_current_size, rx_buffer_current_size,
-                payload[0], payload[1], payload[2], payload[3],
-                payload[4], payload[5], payload[6], payload[7]);
+        LOG_ERR("Number of data in buffer not divisible by 8!");
+        return -1;
     }
     
     LOG_INF("Sending of CAN RX buffer succeeded");
@@ -602,6 +607,10 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
     // If all of payload was read, bytes remaining in buffer have to be sent
     if (payload_read == payload_len) {
         LOG_INF("Received full firmware image: %d bytes", payload_read);
+
+        // The number of remaining bytes might not be a multiple of 8
+        // so we pad the buffer.
+        buffer_read = pad_rx_buffer(buffer_read);
 
         ret = send_rx_buffer_protected(control_frame_id, firmware_frame_id, buffer_read);
         if (ret) {

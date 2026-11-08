@@ -3,6 +3,9 @@
 
 #include <zephyr/device.h>
 
+// Max payload size of standard CAN frame
+#define CAN_FRAME_MAX_PAYLOAD 8
+
 // Timeout for accessing CAN TX mailbox
 #define CAN_TX_MAILBOX_TIMEOUT 5
 
