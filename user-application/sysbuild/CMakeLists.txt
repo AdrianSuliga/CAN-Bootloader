@@ -48,19 +48,19 @@ set(CTRL_FRAME_ID "" CACHE STRING "ID of control frame")
 set(FIRMWARE_FRAME_ID "" CACHE STRING "ID of firmware frame")
 
 if ("${CTRL_FRAME_ID}" STREQUAL "")
-    message(FATAL_ERROR "CTRL_FRAME_ID must be provided via -DCTRL_FRAME_ID=<integer>")
+    message(FATAL_ERROR "[Sysbuild] CTRL_FRAME_ID must be provided via -DCTRL_FRAME_ID=<integer>")
 endif()
 
 if ("${FIRMWARE_FRAME_ID}" STREQUAL "")
-    message(FATAL_ERROR "FIRMWARE_FRAME_ID must be provided via -DFIRMWARE_FRAME_ID=<integer>")
+    message(FATAL_ERROR "[Sysbuild] FIRMWARE_FRAME_ID must be provided via -DFIRMWARE_FRAME_ID=<integer>")
 endif()
 
 if (NOT "${CTRL_FRAME_ID}" MATCHES "^-?[0-9]+$")
-    message(FATAL_ERROR "CTRL_FRAME_ID must be an integer, got '${CTRL_FRAME_ID}'")
+    message(FATAL_ERROR "[Sysbuild] CTRL_FRAME_ID must be an integer, got '${CTRL_FRAME_ID}'")
 endif()
 
 if (NOT "${FIRMWARE_FRAME_ID}" MATCHES "^-?[0-9]+$")
-    message(FATAL_ERROR "FIRMWARE_FRAME_ID must be an integer, got '${FIRMWARE_FRAME_ID}'")
+    message(FATAL_ERROR "[Sysbuild] FIRMWARE_FRAME_ID must be an integer, got '${FIRMWARE_FRAME_ID}'")
 endif()
 
 # Actual bootloader build command
