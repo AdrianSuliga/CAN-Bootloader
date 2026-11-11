@@ -69,3 +69,31 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
     # Add user defined libraries
 )
+
+option(TWO_SLOT_SOLUTION "Enable two slot solution" ON)
+
+if (TWO_SLOT_SOLUTION)
+    add_compile_definitions(TWO_SLOT_SOLUTION)
+endif()
+
+set(CTRL_FRAME_ID "" CACHE STRING "ID of control frame")
+set(FIRMWARE_FRAME_ID "" CACHE STRING "ID of firmware frame")
+
+if ("${CTRL_FRAME_ID}" STREQUAL "")
+    message(FATAL_ERROR "CTRL_FRAME_ID must be provided via -DCTRL_FRAME_ID=<integer>")
+endif()
+
+if ("${FIRMWARE_FRAME_ID}" STREQUAL "")
+    message(FATAL_ERROR "FIRMWARE_FRAME_ID must be provided via -DFIRMWARE_FRAME_ID=<integer>")
+endif()
+
+if (NOT "${CTRL_FRAME_ID}" MATCHES "^-?[0-9]+$")
+    message(FATAL_ERROR "CTRL_FRAME_ID must be an integer, got '${CTRL_FRAME_ID}'")
+endif()
+
+if (NOT "${FIRMWARE_FRAME_ID}" MATCHES "^-?[0-9]+$")
+    message(FATAL_ERROR "FIRMWARE_FRAME_ID must be an integer, got '${FIRMWARE_FRAME_ID}'")
+endif()
+
+add_compile_definitions(SYSBUILD_CAN_CTRL_FRAME_ID=${CTRL_FRAME_ID})
+add_compile_definitions(SYSBUILD_CAN_FIRMWARE_FRAME_ID=${FIRMWARE_FRAME_ID})

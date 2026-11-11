@@ -6,7 +6,7 @@
 
 LOG_MODULE_REGISTER(Main, LOG_LEVEL_INF);
 
-#define CAN_FRAME_BOOTLOADER_CTRL_ID 0x400
+#define CAN_FRAME_BOOTLOADER_CTRL_ID SYSBUILD_CTRL_FRAME_ID
 #define BOOTLOADER_COMMAND_START     0x0
 
 static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
@@ -58,7 +58,7 @@ int main()
 
         gpio_pin_toggle_dt(&led0);
         gpio_pin_toggle_dt(&led2);
-        k_sleep(K_MSEC(100));
+        k_sleep(K_MSEC(1000));
     }
 
     return 0;

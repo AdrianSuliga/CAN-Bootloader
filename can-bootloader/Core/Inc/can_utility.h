@@ -8,18 +8,18 @@ extern "C" {
 #include "stm32f7xx_hal.h"
 
 // Default timeout for transmitting CAN
-// frame, in ms
+// frame, in ms.
 #define CAN_MAILBOX_TX_DEFAULT_TIMEOUT 100
 
 // CAN frame ID for frames indicating all
 // fragments of user applications were sent.
-// Has to be manually set for each system node.
-#define CAN_FRAME_BOOTLOADER_CTRL_ID ...
+// Has to be set during compilation via -DCTRL_FRAME_ID=
+#define CAN_FRAME_BOOTLOADER_CTRL_ID SYSBUILD_CAN_CTRL_FRAME_ID
 
 // CAN frame ID for frames containing
 // new user application fragments.
-// Has to be manually set for each system node.
-#define CAN_FRAME_FIRMWARE_FRAGMENT_ID ...
+// Has to be set during compilation via -DFIRMWARE_FRAME_ID=
+#define CAN_FRAME_FIRMWARE_FRAGMENT_ID SYSBUILD_CAN_FIRMWARE_FRAME_ID
 
 // Command messages used in payload of
 // bootloader control messages
@@ -29,7 +29,7 @@ extern "C" {
 #define BOOTLOADER_COMMAND_ACK    4
 #define BOOTLOADER_COMMAND_ABORT  5
 
-// Size of buffer for user application
+// Size of buffer for user application.
 #define CAN_RX_BUFFER_SIZE 8192U
 
 // Declared in can_utility.h, defined in can_utility.c

@@ -40,6 +40,29 @@ set(BOOTLOADER_ELF
     "${BOOTLOADER_BUILD_DIR}/can-bootloader.elf"
 )
 
+# Define option for disabling two slot solution
+option(TWO_SLOT_SOLUTION "Enable two slot solution" ON)
+
+# Define control and firmware frame IDs
+set(CTRL_FRAME_ID "" CACHE STRING "ID of control frame")
+set(FIRMWARE_FRAME_ID "" CACHE STRING "ID of firmware frame")
+
+if ("${CTRL_FRAME_ID}" STREQUAL "")
+    message(FATAL_ERROR "CTRL_FRAME_ID must be provided via -DCTRL_FRAME_ID=<integer>")
+endif()
+
+if ("${FIRMWARE_FRAME_ID}" STREQUAL "")
+    message(FATAL_ERROR "FIRMWARE_FRAME_ID must be provided via -DFIRMWARE_FRAME_ID=<integer>")
+endif()
+
+if (NOT "${CTRL_FRAME_ID}" MATCHES "^-?[0-9]+$")
+    message(FATAL_ERROR "CTRL_FRAME_ID must be an integer, got '${CTRL_FRAME_ID}'")
+endif()
+
+if (NOT "${FIRMWARE_FRAME_ID}" MATCHES "^-?[0-9]+$")
+    message(FATAL_ERROR "FIRMWARE_FRAME_ID must be an integer, got '${FIRMWARE_FRAME_ID}'")
+endif()
+
 # Actual bootloader build command
 ExternalProject_Add(bootloader
     SOURCE_DIR ${BOOTLOADER_DIR}
@@ -50,6 +73,9 @@ ExternalProject_Add(bootloader
         ${CMAKE_COMMAND}
         -DCMAKE_BUILD_TYPE=Debug
         -DCMAKE_TOOLCHAIN_FILE=${BOOTLOADER_DIR}/cmake/gcc-arm-none-eabi.cmake
+        -DTWO_SLOT_SOLUTION=${TWO_SLOT_SOLUTION}
+        -DCTRL_FRAME_ID=${CTRL_FRAME_ID}
+        -DFIRMWARE_FRAME_ID=${FIRMWARE_FRAME_ID}
         -G Ninja
         -S ${BOOTLOADER_DIR}
         -B ${BOOTLOADER_BUILD_DIR}
@@ -82,12 +108,10 @@ find_program(SREC_CAT
     REQUIRED
 )
 
-
 # User application binary
 set(APP_ELF
     "${CMAKE_BINARY_DIR}/user-application/zephyr/zephyr.elf"
 )
-
 
 # Intermediate binaries
 set(BOOTLOADER_HEX
@@ -97,12 +121,10 @@ set(APP_HEX
     "${CMAKE_BINARY_DIR}/application.hex"
 )
 
-
 # Final binary, this is what you flash
 set(COMBINED_HEX
     "${CMAKE_BINARY_DIR}/merged.hex"
 )
-
 
 # Actual merging that produces ${COMBINED_HEX}
 add_custom_command(
