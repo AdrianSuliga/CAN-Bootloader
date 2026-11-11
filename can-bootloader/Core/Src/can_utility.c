@@ -6,7 +6,7 @@
 #include "string.h"
 #include "main.h"
 
-volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE] = { 0x0 };
+_Alignas(uint32_t) volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE] = { 0x0 };
 
 // Offsets for writing operations
 static volatile uint32_t can_rx_buffer_offset = 0;
