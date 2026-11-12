@@ -2,9 +2,9 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { BoardNode, isSystem, isBoard } from './model/board_node';
-import { BoardTreeProvider } from './board_view';
+import { BoardTreeProvider } from './views/board_view';
 import { parseDBC } from './model/dbc_parser';
-import { upload } from './communication/upload';
+import { upload } from './commands/upload';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -48,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (!isBoard(element)) { return; }
 			if (!isSystem(system)) { return; }
 
-			await upload(system.mqttBroker, system.mqttPort, system.mqttUploadTopic, element.controlId, element.firmwareId);
+			await upload(system.mqttBroker, system.mqttPort, system.mqttUploadTopic, element.controlId, element.firmwareId, context);
 		}
 	);
 

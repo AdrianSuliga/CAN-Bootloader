@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { BoardNode } from './model/board_node';
-import { BoardRepository } from './model/board_repository';
+import { BoardNode } from '../model/board_node';
+import { BoardRepository } from '../model/board_repository';
 
 const boardRepository: BoardRepository = new BoardRepository;
 
