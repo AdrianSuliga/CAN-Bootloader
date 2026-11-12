@@ -2,23 +2,10 @@
 #include "can_utility.h"
 #include "flash_utility.h"
 
-// Initiate invalid state, recover actual state in main.c
-enum UserApplicationSlot target_slot = USER_APP_SLOT_INVALID;
-enum UserApplicationSlot recovery_slot = USER_APP_SLOT_INVALID;
-
-void Boot_Start_NewUserApplication()
+void Boot_Start_UserApplication()
 {
-  // Verify caller wants to jump to valid slot
-  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
-    return;
-  }
-
-  uint32_t target = target_slot == USER_APP_SLOT_1 ?
-                      USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
-
   // Disable interrupts for critical section
   __disable_irq();
-
   // Deinitialize all HAL peripherals and stop SysTick
   HAL_DeInit();
 
@@ -28,17 +15,17 @@ void Boot_Start_NewUserApplication()
   SysTick->VAL = 0;
 
   // Set vector table to the one used by user application
-  SCB->VTOR = target;
+  SCB->VTOR = USER_APP_SLOT_ADDR;
 
   // Set stack pointer to the one used by user application
   volatile uint32_t newStackPtr;
-  newStackPtr = *(volatile uint32_t*)(target);
+  newStackPtr = *(volatile uint32_t*)(USER_APP_SLOT_ADDR);
 
   __set_MSP(newStackPtr);
 
   // Prepare „fake” function to jump to user application
   volatile uint32_t codeAddress;
-  codeAddress = *(volatile uint32_t*)(target + 4);
+  codeAddress = *(volatile uint32_t*)(USER_APP_SLOT_ADDR + 4);
 
   void (*app_entry)(void) = (void*)codeAddress;
 
@@ -52,9 +39,8 @@ void Boot_Start_NewUserApplication()
   app_entry();
 }
 
-void Boot_Recover_OldUserApplication()
+void Boot_Recover()
 {
-  // TODO implement 2-slot solution
   if (slot_erased) {
     // Flash was erased, there is no fallback option.
     // Bootloader hangs indefinitely. 
@@ -62,6 +48,6 @@ void Boot_Recover_OldUserApplication()
       HAL_Delay(1000);
     }
   } else {
-    Boot_Start_NewUserApplication();
+    Boot_Start_UserApplication();
   }
 }

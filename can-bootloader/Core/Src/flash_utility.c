@@ -3,11 +3,23 @@
 #include "can_utility.h"
 #include "string.h"
 
-HAL_StatusTypeDef Flash_Erase_TargetSlot()
+HAL_StatusTypeDef Flash_Erase_TargetSlot(enum UserApplicationSlot slot)
 {
-  // Validate caller wants to erase valid slot
-  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
-    return HAL_ERROR;
+  uint32_t sector_idx, sector_cnt;
+  switch (slot) {
+    case USER_APP_SLOT:
+      sector_idx = USER_APP_SLOT_START;
+      sector_cnt = USER_APP_SLOT_SECTOR_CNT;
+      slot_erased = 1;
+      break;
+#ifdef TWO_SLOT_SOLUTION
+    case SWAP_SLOT:
+      sector_idx = SWAP_SLOT_START;
+      sector_cnt = SWAP_SLOT_SECTOR_CNT;
+      break;
+#endif
+    default:
+      return HAL_ERROR;
   }
 
   // Disable interrupts for Flash critical section
@@ -25,10 +37,8 @@ HAL_StatusTypeDef Flash_Erase_TargetSlot()
 
   erase.TypeErase = FLASH_TYPEERASE_SECTORS;
   erase.VoltageRange = VOLTAGE_RANGE_3;
-  erase.Sector = target_slot == USER_APP_SLOT_1 ?
-                 USER_APP_SLOT_1_START : USER_APP_SLOT_2_START;
-  erase.NbSectors = target_slot == USER_APP_SLOT_1 ?
-                    USER_APP_SLOT_1_SECTOR_CNT : USER_APP_SLOT_2_SECTOR_CNT;
+  erase.Sector = sector_idx;
+  erase.NbSectors = sector_cnt;
 
   // Erase user application slots
   HAL_StatusTypeDef result = HAL_FLASHEx_Erase(&erase, &error);
@@ -42,34 +52,41 @@ HAL_StatusTypeDef Flash_Erase_TargetSlot()
   return result;
 }
 
-HAL_StatusTypeDef Flash_Write_CANRxBuffer(uint32_t offset)
-{
-  // Validate caller wants to use valid slot
-  if (target_slot != USER_APP_SLOT_1 && target_slot != USER_APP_SLOT_2) {
-    return HAL_ERROR;
+HAL_StatusTypeDef Flash_Write(
+  enum UserApplicationSlot target_slot,
+  uint32_t offset,
+  uint8_t *source,
+  uint32_t len
+) {
+  // Determine address of the target slot
+  uint32_t base_address;
+  switch (target_slot) {
+    case USER_APP_SLOT:
+      base_address = USER_APP_SLOT_ADDR;
+      break;
+#ifdef TWO_SLOT_SOLUTION
+    case SWAP_SLOT:
+      base_address = SWAP_SLOT_ADDR;
+      break;
+#endif
+    default:
+      return HAL_ERROR;
   }
 
   HAL_StatusTypeDef result;
-  uint32_t base_address = target_slot == USER_APP_SLOT_1 ?
-                            USER_APP_SLOT_1_ADDR : USER_APP_SLOT_2_ADDR;
   uint32_t write_address = base_address + offset;
 
   // Disable interrupts for Flash critical section
   __disable_irq();
-
   // Unlock Flash memory
   HAL_FLASH_Unlock();
 
   // Loop through buffer and save its content to user application slot
-  for (int i = 0; i < CAN_RX_BUFFER_SIZE; i += 4) {
-    
+  for (int i = 0; i < len; i += sizeof(uint32_t)) {
     // Flash memory is arranged in 32-bit words
-    uint32_t word_size = sizeof(uint32_t);
     uint32_t word;
-    
-    memcpy(&word, (void*)(can_rx_buffer + i), word_size);
+    memcpy(&word, (void*)(source + i), sizeof(uint32_t));
 
-    // Clear Flash flags
     FLASH_CLEAR_FLAGS();
 
     // Wait for Flash operations to complete before the write
@@ -82,14 +99,36 @@ HAL_StatusTypeDef Flash_Write_CANRxBuffer(uint32_t offset)
       __enable_irq();
       return result;
     }
-
   }
 
   // Lock Flash again after completing operation
   HAL_FLASH_Lock();
-
   // Enable interrupts after Flash critical section
   __enable_irq();
 
   return HAL_OK;
 }
+
+#ifdef TWO_SLOT_SOLUTION
+HAL_StatusTypeDef Flash_Move_Swap() {
+  HAL_StatusTypeDef res;
+
+  // Prepare the flash memory of user application
+  res = Flash_Erase_TargetSlot(USER_APP_SLOT);
+  if (res != HAL_OK) {
+    return res;
+  }
+
+  // Move the data from swap space to user application space
+  uint32_t app_len = flash_new_app_offset;
+  res = Flash_Write(USER_APP_SLOT, 0, (uint8_t*)SWAP_SLOT_ADDR, app_len);
+  if (res != HAL_OK) {
+    return res;
+  }
+
+  // Erase the swap space. An error here would not be critical, so we ignore it
+  Flash_Erase_TargetSlot(SWAP_SLOT);
+
+  return HAL_OK;
+}
+#endif

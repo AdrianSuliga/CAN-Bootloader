@@ -117,40 +117,38 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  // TODO implement 2-slot solution - get slots state
-  target_slot = USER_APP_SLOT_1;
-
   // Initialize CAN receive buffer
   memset((void*)can_rx_buffer, 0xFF, CAN_RX_BUFFER_SIZE);
 
   // Confirm to gateway board that bootloader is ready
   res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
   if (res != HAL_OK) {
-    Boot_Recover_OldUserApplication();
+    Boot_Recover();
   }
 
   // Start expecting CAN communication with gateway board
   res = HAL_TIM_Base_Start_IT(&htim6);
   if (res != HAL_OK) {
-    Boot_Recover_OldUserApplication();
+    Boot_Recover();
   }
 
   while (1)
   {
     if (setup_request) {
       // Gateway board requested bootloader setup
-      res = Flash_Erase_TargetSlot();
+#ifdef TWO_SLOT_SOLUTION
+      res = Flash_Erase_TargetSlot(SWAP_SLOT);
+#else
+      res = Flash_Erase_TargetSlot(USER_APP_SLOT);
+#endif
       if (res != HAL_OK) {
-        Boot_Recover_OldUserApplication();
+        Boot_Recover();
       }
 
       res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
       if (res != HAL_OK) {
-        Boot_Recover_OldUserApplication();
+        Boot_Recover();
       }
-
-      // Indication for fallback procedures
-      slot_erased = 1;
 
       // Setup handled successfully
       setup_request = 0;
@@ -160,20 +158,28 @@ int main(void)
       // Turn off timer
       HAL_TIM_Base_Stop_IT(&htim6);
 
+#ifdef TWO_SLOT_SOLUTION
+      // Move contents of the new app from swap space to user application space
+      res = Flash_Move_Swap();
+      if (res != HAL_OK) {
+          Boot_Recover();
+      }
+#endif
+
       // Confirm to gateway board that flashing was a success
       res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
       if (res != HAL_OK) {
-        Boot_Recover_OldUserApplication();
+        Boot_Recover();
       }
 
-      Boot_Start_NewUserApplication();
+      Boot_Start_UserApplication();
     }
 
     if (abort_required) {
       // Turn off timer
       HAL_TIM_Base_Stop_IT(&htim6);
 
-      Boot_Recover_OldUserApplication();
+      Boot_Recover();
     }
 
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);

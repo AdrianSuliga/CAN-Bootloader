@@ -10,7 +10,7 @@ _Alignas(uint32_t) volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE] = { 0x0 };
 
 // Offsets for writing operations
 static volatile uint32_t can_rx_buffer_offset = 0;
-static volatile uint32_t flash_offset         = 0;
+volatile uint32_t flash_new_app_offset        = 0;
 
 // Flags for bootloader control
 volatile int setup_request   = 0;
@@ -23,12 +23,22 @@ static HAL_StatusTypeDef CAN_Write_RxBuffer(uint32_t buffer_size)
   // Update the CRC32 checksum with data in the buffer before flushing
   CRC_Checksum_Update((const uint8_t *)can_rx_buffer, buffer_size);
 
-  HAL_StatusTypeDef res = Flash_Write_CANRxBuffer(flash_offset);
+  // Write the app to the right slot
+  HAL_StatusTypeDef res = Flash_Write(
+#ifdef TWO_SLOT_SOLUTION
+      SWAP_SLOT,
+#else
+      USER_APP_SLOT,
+#endif
+      flash_new_app_offset,
+      (uint8_t*)can_rx_buffer,
+      CAN_RX_BUFFER_SIZE
+  );
   if (res != HAL_OK) {
     return res;
   }
 
-  flash_offset += buffer_size;
+  flash_new_app_offset += buffer_size;
   // Reset buffer state after write
   can_rx_buffer_offset = 0;
   memset((void*)can_rx_buffer, 0xFF, CAN_RX_BUFFER_SIZE);

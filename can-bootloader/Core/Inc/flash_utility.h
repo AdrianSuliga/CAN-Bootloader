@@ -8,32 +8,38 @@
 extern "C" {
 #endif
 
-// User application slot
 enum UserApplicationSlot {
-    USER_APP_SLOT_INVALID = -1,
-    USER_APP_SLOT_1,
-    USER_APP_SLOT_2
+    USER_APP_SLOT,
+#ifdef TWO_SLOT_SOLUTION
+    SWAP_SLOT
+#endif
 };
 
-// Address where user application slot 1 starts
-// (beginning of FLASH_SECTOR_1)
-#define USER_APP_SLOT_1_ADDR 0x08008000U
+// Address where user application slot starts (beginning of FLASH_SECTOR_1)
+#define USER_APP_SLOT_ADDR 0x08008000U
 
-// Address where user application slot 2 starts
-// (beginning of FLASH_SECTOR_6)
-#define USER_APP_SLOT_2_ADDR 0x08080000U
+// Flash memory sector where user application slot starts
+#define USER_APP_SLOT_START FLASH_SECTOR_1
 
-// Flash memory sector where user application slot 1 starts
-#define USER_APP_SLOT_1_START FLASH_SECTOR_1
+#ifdef TWO_SLOT_SOLUTION
 
-// Flash memory sector where user application slot 2 starts
-#define USER_APP_SLOT_2_START FLASH_SECTOR_6
+// Number of sectors reserved for user application slot
+#define USER_APP_SLOT_SECTOR_CNT 5U
 
-// Number of sectors reserved for user application slot 1
-#define USER_APP_SLOT_1_SECTOR_CNT 5U
+// Address where swap slot starts (beginning of FLASH_SECTOR_6)
+#define SWAP_SLOT_ADDR 0x08080000U
 
-// Number of sectors reserved for user application slot 2
-#define USER_APP_SLOT_2_SECTOR_CNT 2U
+// Flash memory sector where swap slot starts
+#define SWAP_SLOT_START FLASH_SECTOR_6
+
+// Number of sectors reserved for swap slot
+#define SWAP_SLOT_SECTOR_CNT 2U
+
+#else
+
+#define USER_APP_SLOT_SECTOR_CNT 7U
+
+#endif // TWO_SLOT_SOLUTION
 
 // Macro for clearing Flash flags
 #define FLASH_CLEAR_FLAGS() \
@@ -42,11 +48,20 @@ enum UserApplicationSlot {
                            FLASH_FLAG_PGPERR | FLASH_FLAG_ERSERR)
 
 // Erase Flash sectors for target slot
-HAL_StatusTypeDef Flash_Erase_TargetSlot();
+HAL_StatusTypeDef Flash_Erase_TargetSlot(enum UserApplicationSlot slot);
 
-// Write content of CAN receive buffer to target slot
-// moved by offset
-HAL_StatusTypeDef Flash_Write_CANRxBuffer(uint32_t offset);
+// Write content of source to slot moved by offset
+HAL_StatusTypeDef Flash_Write(
+  enum UserApplicationSlot target_slot,
+  uint32_t offset,
+  uint8_t *source,
+  uint32_t len
+);
+
+#ifdef TWO_SLOT_SOLUTION
+// Move the contents of swap space to user application space
+HAL_StatusTypeDef Flash_Move_Swap();
+#endif
 
 #ifdef __cplusplus
 }

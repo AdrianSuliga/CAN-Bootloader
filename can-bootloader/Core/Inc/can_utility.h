@@ -37,6 +37,10 @@ extern "C" {
 extern volatile uint8_t can_rx_buffer[CAN_RX_BUFFER_SIZE];
 
 // Declared in can_utility.h, defined in can_utility.c
+// Number of bytes of the received app that have been written to flash memory.
+extern volatile uint32_t flash_new_app_offset;
+
+// Declared in can_utility.h, defined in can_utility.c
 // Indicate that new user application is ready
 extern volatile int app_ready;
 

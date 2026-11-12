@@ -8,16 +8,11 @@
 extern "C" {
 #endif
 
-// Declared in boot_utility.h, defined in boot_utility.c
-// System state, keeps track of user application slot cycle
-extern enum UserApplicationSlot target_slot;
-extern enum UserApplicationSlot recovery_slot;
+// Jump to program stored at user application slot
+void Boot_Start_UserApplication();
 
-// Jump to user application stored at target slot
-void Boot_Start_NewUserApplication();
-
-// Jump to user application stored at recovery slot
-void Boot_Recover_OldUserApplication();
+// Try to recover the system after a critical error
+void Boot_Recover();
 
 #ifdef __cplusplus
 }
