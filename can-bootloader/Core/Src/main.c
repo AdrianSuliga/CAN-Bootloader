@@ -160,11 +160,6 @@ int main(void)
       // Turn off timer
       HAL_TIM_Base_Stop_IT(&htim6);
 
-      // Verify integrity
-      if (!checksums_match) {
-          Boot_Recover_OldUserApplication();
-      }
-
       // Confirm to gateway board that flashing was a success
       res = CAN_Send_ControlFrame(&hcan1, CAN_MAILBOX_TX_DEFAULT_TIMEOUT);
       if (res != HAL_OK) {

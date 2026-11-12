@@ -52,10 +52,6 @@ extern volatile int setup_request;
 // Indicate whether old user application was erased or not.
 extern volatile int slot_erased;
 
-// Declared in can_utility.h, defined in can_utility.c
-// Indicate whether the received checksum is the same as the calculated one.
-extern volatile int checksums_match;
-
 // Callback for receiving new CAN frame
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
 

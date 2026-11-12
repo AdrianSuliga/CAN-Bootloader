@@ -17,7 +17,6 @@ volatile int setup_request   = 0;
 volatile int slot_erased     = 0;
 volatile int abort_required  = 0;
 volatile int app_ready       = 0;
-volatile int checksums_match = 0;
 
 static HAL_StatusTypeDef CAN_Write_RxBuffer(uint32_t buffer_size)
 {
@@ -102,17 +101,17 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
           // If transmission ended with success,
           // flash what remains in receive buffer
           res = CAN_Write_RxBuffer(can_rx_buffer_offset);
-          if (res == HAL_OK) {
-            uint32_t crc32_calculated = CRC_Checksum_Finalize();
 
-            // Aligning the bytes, received in little endian
-            uint32_t crc32_received =
-                ((uint32_t)data[1]      ) |
-                ((uint32_t)data[2] <<  8) |
-                ((uint32_t)data[3] << 16) |
-                ((uint32_t)data[4] << 24);
+          uint32_t crc32_calculated = CRC_Checksum_Finalize();
 
-            checksums_match = (crc32_calculated == crc32_received);
+          // Aligning the bytes, received in little endian
+          uint32_t crc32_received =
+            ((uint32_t)data[1]      ) |
+            ((uint32_t)data[2] <<  8) |
+            ((uint32_t)data[3] << 16) |
+            ((uint32_t)data[4] << 24);
+
+          if (res == HAL_OK && crc32_calculated == crc32_received) {
             app_ready = 1;
           } else {
             abort_required = 1;
