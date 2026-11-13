@@ -126,9 +126,6 @@ HAL_StatusTypeDef Flash_Move_Swap() {
     return res;
   }
 
-  // Erase the swap space. An error here would not be critical, so we ignore it
-  Flash_Erase_TargetSlot(SWAP_SLOT);
-
   return HAL_OK;
 }
 #endif
