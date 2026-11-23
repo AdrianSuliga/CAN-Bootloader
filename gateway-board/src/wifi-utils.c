@@ -2,6 +2,8 @@
 #include "can-utils.h"
 #include "watchdog-utils.h"
 
+#include <stdio.h>
+#include <string.h>
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/wifi.h>
@@ -242,6 +244,27 @@ static void update_state_on_mqtt_disconnect()
 {
     k_sem_take(&mqtt_ready_flag, K_NO_WAIT);
     atomic_set(&mqtt_ready, 0);
+}
+
+static int publish(char* message){
+    const struct mqtt_publish_param param = {
+        .message = {
+            .payload = {
+                .data = message,
+                .len = strlen(message)
+            },
+            .topic.topic = {
+                .utf8 = CONFIG_MQTT_PUBLISH_TOPIC,
+                .size = strlen(CONFIG_MQTT_PUBLISH_TOPIC)
+            },
+            .topic.qos = MQTT_QOS_0_AT_MOST_ONCE
+        },
+        .message_id = 0, //ignored at QoS 0
+        .dup_flag = 0,
+        .retain_flag = 0
+    };
+    
+    return mqtt_publish(&client, &param);
 }
 
 static int subscribe()
@@ -517,6 +540,8 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
     uint32_t payload_len = evt->param.publish.message.payload.len;
     // CRC16 of the payload
     uint32_t crc = 0;
+    // Publish message buffer
+    char message_buffer[128];
 
     LOG_INF("Incoming payload size: %d", payload_len);
 
@@ -547,10 +572,24 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
         return ret;
     }
 
+    // Send info that bootloader started
+    ret = publish("Bootloader successfully started");
+    if (ret < 0) {
+        LOG_ERR("Failed to publish bootloader start information, error %d", ret);
+        return ret;
+    }
+
     // Request bootloader setup (erase Flash slot)
     ret = bootloader_setup(control_frame_id);
     if (ret != 0) {
         return bootloader_abort(control_frame_id);
+    }
+
+    // Send info that flash setup is completed
+    ret = publish("Flash setup completed");
+    if (ret < 0) {
+        LOG_ERR("Failed to publish flash setup information, error %d", ret);
+        return ret;
     }
 
     // Process payload in a loop
@@ -595,6 +634,14 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
                 return ret;
             }
 
+            //Send transmission progress
+            snprintf(message_buffer, sizeof(message_buffer), "App transmission progress (%d/%d)", payload_read, payload_len);
+            ret = publish(message_buffer);
+            if (ret < 0) {
+                LOG_ERR("Failed to publish progress feedback, error %d", ret);
+                return ret;
+            }
+
             // Feed the chunk in buffer to CRC16
             crc = crc32_ieee_update(crc, rx_buffer, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
 
@@ -626,6 +673,13 @@ static int flash_new_firmware(struct mqtt_client *client, const struct mqtt_evt 
         memset(rx_buffer, 0, CONFIG_MQTT_MESSAGE_RX_BUFFER_SIZE);
 
         LOG_INF("Flashing took %u ms", k_uptime_get_32() - flashing_start);
+        
+        // Send info that flashing has finished
+        ret = publish("App transmitted successfully");
+        if (ret < 0) {
+            LOG_ERR("Failed to publish finish feedback, error %d", ret);
+            return ret;
+        }
 
         // Stop bootloader, jump to newly flashed app
         return bootloader_stop(control_frame_id, crc);
