@@ -48,7 +48,16 @@ export function activate(context: vscode.ExtensionContext) {
 			if (!isBoard(element)) { return; }
 			if (!isSystem(system)) { return; }
 
-			await upload(system.mqttBroker, system.mqttPort, system.mqttUploadTopic, element.controlId, element.firmwareId, context);
+			await upload(
+				system.mqttBroker,
+				system.mqttPort,
+				system.mqttUploadTopic,
+				system.mqttDebugTopic,
+				element.name,
+				element.controlId,
+				element.firmwareId,
+				context
+			);
 		}
 	);
 

@@ -1,7 +1,8 @@
 import mqtt from "mqtt";
 import vscode from "vscode";
-import path from "path";
+import path, { resolve } from "path";
 import * as converter from "../util/convert_elf";
+import { rejects } from "assert";
 
 const LAST_PICKED_DIRECTORY = "WIRELESS_UPLOADER_LAST_PICKED_DIRECTORY";
 
@@ -9,6 +10,8 @@ export async function upload(
     brokerUrl: string,
     brokerPort: number,
     uploadTopic: string,
+    subscribeTopic: string,
+    boardName: string,
     controlId: number,
     firmwareId: number,
     extensionContext: vscode.ExtensionContext
@@ -50,6 +53,12 @@ export async function upload(
         protocol: 'mqtt'
     });
 
+    client.on('connect', () => {
+        client.subscribe(subscribeTopic);
+    });
+
+    startProgressWindow(client, boardName);
+
     const payload = addHeader(context, controlId, firmwareId);
 
     client.publish(uploadTopic, Buffer.from(payload));
@@ -70,6 +79,56 @@ function addHeader(payload: Uint8Array, controlId: number, firmwareId: number): 
     newPayload.set(payload, 4);
 
     return newPayload;
+}
+
+function startProgressWindow(client: mqtt.MqttClient, boardName: string) {
+    vscode.window.withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: "Flashing [" + boardName + "]",
+            cancellable: false
+        },
+        (progress, token) => {
+            return new Promise<void>((resolve) => {
+                let currentProgress = 0;
+                progress.report({ message: "Waiting for the gateway board" });
+
+                client.on('message', (topic, payload) => {
+                    let message = payload.toString();
+                    switch (message) {
+                        case "Bootloader successfully started":
+                            progress.report({ message: "Bootloader successfully started" });
+                            break;
+                        case "Flash setup completed":
+                            progress.report({ increment: 0, message: "Flash setup completed" });
+                            break;
+                        case "App transmitted successfully":
+                            vscode.window.showInformationMessage("Application flashed successfully");
+                            resolve();
+                            break;
+                        default:
+                            if (!message.includes("App transmission progres")) {
+                                vscode.window.showErrorMessage("Received unknown message: ", message);
+                                break;
+                            }
+                            let starts = "App transmission progres".length;
+                            let parts = message.substring(starts + 3, message.length - 1).split('/');
+
+                            let newProgress = Number(parts[0]) / Number(parts[1]) * 100;
+                            newProgress = Math.floor(newProgress);
+
+                            progress.report({ increment: newProgress - currentProgress, message: "Transferred " + message.substring(starts + 2, message.length) });
+
+                            currentProgress = newProgress;
+                            break;
+                    }
+                });
+            });
+        }
+    );
+
+
+
 }
 
 function cleanup(file: converter.BinFile) {
