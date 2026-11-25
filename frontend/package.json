@@ -72,7 +72,30 @@
           "group": "inline@1"
         }
       ]
-    }
+    },
+    "configuration": [
+      {
+        "title": "Wireless Uploader",
+        "properties": {
+          "wirelessUploader.gatewayFirstConnectionTimeout": {
+            "type": "number",
+            "default": 10000,
+            "minimum": 1000,
+            "maximum": 60000,
+            "scope": "window",
+            "description": "Maximum time to wait for the gateway board to respond to upload request (in ms)"
+          },
+          "wirelessUploader.gatewaySubsequentTimeout": {
+            "type": "number",
+            "default": 30000,
+            "minimum": 1000,
+            "maximum": 120000,
+            "scope": "window",
+            "description": "Maximum time to wait between gateway board messages (in ms)"
+          }
+        }
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

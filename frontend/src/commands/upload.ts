@@ -1,8 +1,7 @@
 import mqtt from "mqtt";
 import vscode from "vscode";
-import path, { resolve } from "path";
+import path from "path";
 import * as converter from "../util/convert_elf";
-import { rejects } from "assert";
 
 const LAST_PICKED_DIRECTORY = "WIRELESS_UPLOADER_LAST_PICKED_DIRECTORY";
 
@@ -45,7 +44,7 @@ export async function upload(
         return;
     }
 
-    const context = await vscode.workspace.fs.readFile(vscode.Uri.file(binFile.filePath));
+    const openedFile = await vscode.workspace.fs.readFile(vscode.Uri.file(binFile.filePath));
 
     const client = mqtt.connect({
         host: brokerUrl,
@@ -57,9 +56,16 @@ export async function upload(
         client.subscribe(subscribeTopic);
     });
 
-    startProgressWindow(client, boardName);
+    const extensionConfig = vscode.workspace.getConfiguration("wirelessUploader");
 
-    const payload = addHeader(context, controlId, firmwareId);
+    startProgressWindow(
+        client,
+        boardName,
+        extensionConfig.get<number>("gatewayFirstConnectionTimeout", 10000),
+        extensionConfig.get<number>("gatewaySubsequentTimeout", 30000)
+    );
+
+    const payload = addHeader(openedFile, controlId, firmwareId);
 
     client.publish(uploadTopic, Buffer.from(payload));
 
@@ -81,7 +87,7 @@ function addHeader(payload: Uint8Array, controlId: number, firmwareId: number): 
     return newPayload;
 }
 
-function startProgressWindow(client: mqtt.MqttClient, boardName: string) {
+function startProgressWindow(client: mqtt.MqttClient, boardName: string, timeout1Ms: number, timeout2Ms: number) {
     vscode.window.withProgress(
         {
             location: vscode.ProgressLocation.Notification,
@@ -90,34 +96,66 @@ function startProgressWindow(client: mqtt.MqttClient, boardName: string) {
         },
         (progress, token) => {
             return new Promise<void>((resolve) => {
+                // First connection timeout;
+                let timeout = setTimeout(() => {
+                    vscode.window.showErrorMessage("Couldn't connect to the gateway board");
+                    finish();
+                }, timeout1Ms);
+
+                //Timeout if something went wrong during upload
+                const resetTimeout = () => {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => {
+                        vscode.window.showErrorMessage("Gateway board became unresponsive");
+                        finish();
+                    }, timeout2Ms);
+                };
+
+                // Cleanly finish the function 
+                let finished = false;
+                const finish = () => {
+                    finished = true;
+                    clearTimeout(timeout);
+                    client.end();
+                    resolve();
+                };
+
                 let currentProgress = 0;
                 progress.report({ message: "Waiting for the gateway board" });
 
                 client.on('message', (topic, payload) => {
+                    if (finished) {
+                        return;
+                    }
+                    resetTimeout();
+
                     let message = payload.toString();
                     switch (message) {
                         case "Bootloader successfully started":
                             progress.report({ message: "Bootloader successfully started" });
                             break;
+
                         case "Flash setup completed":
                             progress.report({ increment: 0, message: "Flash setup completed" });
                             break;
+
                         case "App transmitted successfully":
                             vscode.window.showInformationMessage("Application flashed successfully");
-                            resolve();
+                            finish();
                             break;
+
                         default:
-                            if (!message.includes("App transmission progres")) {
+                            if (!message.includes("App transmission progress")) {
                                 vscode.window.showErrorMessage("Received unknown message: ", message);
                                 break;
                             }
-                            let starts = "App transmission progres".length;
-                            let parts = message.substring(starts + 3, message.length - 1).split('/');
+                            let starts = "App transmission progress".length;
+                            let parts = message.substring(starts + 2, message.length - 1).split('/');
 
                             let newProgress = Number(parts[0]) / Number(parts[1]) * 100;
                             newProgress = Math.floor(newProgress);
 
-                            progress.report({ increment: newProgress - currentProgress, message: "Transferred " + message.substring(starts + 2, message.length) });
+                            progress.report({ increment: newProgress - currentProgress, message: "Transferred " + message.substring(starts + 1, message.length) });
 
                             currentProgress = newProgress;
                             break;
@@ -132,6 +170,7 @@ function startProgressWindow(client: mqtt.MqttClient, boardName: string) {
 }
 
 function cleanup(file: converter.BinFile) {
+    // If .elf was converted to .bin
     if (file.delete) {
         vscode.workspace.fs.delete(vscode.Uri.file(file.filePath));
     }
